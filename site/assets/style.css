@@ -207,3 +207,23 @@ svg text {
     min-height: 220px;
   }
 }
+
+/* --- Motto / Lema --- */
+.motto {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  color: #94a3b8; /* Gris azulado suave */
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+  text-align: center;
+  border-bottom: 1px solid #1e293b;
+  padding-bottom: 8px;
+}
+
+/* Ajuste responsive si hace falta */
+@media (max-width: 600px) {
+  .motto {
+    font-size: 0.85rem;
+  }
+}
