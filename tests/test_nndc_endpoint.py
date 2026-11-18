@@ -1,5 +1,6 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 
 from backend.main import app
@@ -68,8 +69,7 @@ def test_remote_fallback_on_missing_local(mock_nndc_cls, client):
     mock_instance = MagicMock()
     mock_nndc_cls.return_value = mock_instance
     
-    # Assume C-14 is NOT in our small local chains (we only have U/Th/Pb series mostly)
-    # Actually C-14 isn't in decay_chains.json provided earlier.
+    # Assume C-14 is NOT in our small local chains
     mock_instance.get_nuclide_properties.return_value = {
         "z": 6,
         "a": 14,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import re
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
@@ -20,7 +19,7 @@ class NNDCClient:
         self.timeout = timeout
         self.client = httpx.Client(timeout=timeout)
 
-    def get_nuclide_properties(self, z: int, a: int) -> Optional[dict[str, Any]]:
+    def get_nuclide_properties(self, z: int, a: int) -> dict[str, Any] | None:
         """
         Obtiene propiedades básicas de un núclido desde NNDC.
         
@@ -43,6 +42,7 @@ class NNDCClient:
             return self._normalize(raw_data, z, a)
             
         except httpx.HTTPError as exc:
+            # En producción, usar logger.warning en lugar de print
             print(f"[NNDCClient] Error fetching {z}-{a}: {exc}")
             return None
         except Exception as exc:
@@ -52,11 +52,6 @@ class NNDCClient:
     def _normalize(self, raw: dict[str, Any], z: int, a: int) -> dict[str, Any]:
         """
         Normaliza la respuesta cruda de NNDC a nuestro esquema interno.
-        
-        NNDC devuelve estructuras anidadas complejas. Extraemos:
-        - half_life (si disponible)
-        - decay_modes (lista de strings)
-        - stable (bool)
         """
         result = {
             "z": z,
@@ -74,7 +69,6 @@ class NNDCClient:
         # Estabilidad
         stability_info = properties.get("stability", {})
         is_stable_str = stability_info.get("isStable", "")
-        # En NNDC, a veces viene como string "Yes"/"No" o bool
         if isinstance(is_stable_str, str):
             result["stable"] = is_stable_str.lower() == "yes"
         elif isinstance(is_stable_str, bool):
@@ -86,7 +80,6 @@ class NNDCClient:
         hl_unit = half_life_info.get("unit", "")
         
         if hl_value is not None:
-            # Convertir a formato legible simple para demo
             unit_map = {"s": "s", "m": "min", "h": "h", "d": "d", "y": "y"}
             clean_unit = unit_map.get(hl_unit, hl_unit)
             result["half_life"] = f"{hl_value} {clean_unit}"
@@ -98,7 +91,6 @@ class NNDCClient:
             for mode_item in decay_info:
                 m_type = mode_item.get("type", "")
                 if m_type:
-                    # Normalizar nombres comunes
                     normalized = self._normalize_mode_name(m_type)
                     if normalized and normalized not in modes:
                         modes.append(normalized)
@@ -108,7 +100,7 @@ class NNDCClient:
         return result
 
     @staticmethod
-    def _normalize_mode_name(name: str) -> Optional[str]:
+    def _normalize_mode_name(name: str) -> str | None:
         name_lower = name.lower()
         if "alpha" in name_lower:
             return "alpha"

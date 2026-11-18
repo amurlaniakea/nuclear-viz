@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-import asyncio
-import re
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+
+from backend.parsers.nndc import NNDCClient
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_FILE = BASE_DIR / "data" / "decay_chains.json"
@@ -32,7 +34,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Nuclear Viz",
-    version="0.2.0",
+    version="0.3.1",
     description="Visualización educativa de cadenas de decaimiento nuclear.",
     lifespan=lifespan,
 )
@@ -43,6 +45,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Cliente NNDC singleton lazy
+_nndc_client: NNDCClient | None = None
+
+
+def get_nndc_client() -> NNDCClient:
+    global _nndc_client
+    if _nndc_client is None:
+        _nndc_client = NNDCClient()
+    return _nndc_client
 
 
 @app.get("/api/health")
@@ -77,27 +89,8 @@ def get_chain(chain_id: str):
     raise HTTPException(status_code=404, detail=f"Chain '{chain_id}' not found")
 
 
-@app.get("/", include_in_schema=False)
-def index():
-    return FileResponse(STATIC_DIR / "index.html")
-
-
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-from backend.parsers.nndc import NNDCClient
-
-# Inicializamos cliente NNDC lazy (solo cuando se usa)
-_nndc_client: NNDCClient | None = None
-
-def get_nndc_client():
-    global _nndc_client
-    if _nndc_client is None:
-        _nndc_client = NNDCClient()
-    return _nndc_client
-
-
 @app.get("/api/nuclide/{identifier}", summary="Get nuclide details from local cache or NNDC")
-async def get_nuclide(identifier: str):
+async def get_nuclide(identifier: str, request: Request):
     """
     Identifier format: Symbol-Mass (e.g., 'U-238', 'Pb-206')
     Tries local chains first. If not found or ?force_remote=true, queries NNDC.
@@ -106,7 +99,7 @@ async def get_nuclide(identifier: str):
     match = re.match(r"^([A-Za-z]+)-(\d+)$", identifier)
     if not match:
         raise HTTPException(status_code=400, detail="Invalid identifier format. Use Symbol-A (e.g., U-238)")
-    
+
     symbol, mass_str = match.groups()
     try:
         a = int(mass_str)
@@ -127,15 +120,11 @@ async def get_nuclide(identifier: str):
 
     # 2. Query NNDC if requested or missing locally
     force_remote = request.query_params.get("force_remote", "").lower() in ("true", "1", "yes")
-    
+
     if force_remote or not local_nuclide:
         client = get_nndc_client()
-        # Need Z to query NNDC properly usually, but we can infer from symbol via periodic table logic 
-        # OR simpler: NNDC accepts Z/A. We need Z.
-        # For MVP, let's assume standard symbols map to known Zs. 
-        # Better approach: Add a small lookup or use the fact that our local data HAS Z.
-        # If not in local, we don't know Z easily without another API call or hardcoded map.
-        # Let's hardcode common ones for this demo to avoid heavy dependency.
+        
+        # Lookup Z from symbol using hardcoded map for MVP simplicity
         z_lookup = {
             "H": 1, "He": 2, "Li": 3, "Be": 4, "B": 5, "C": 6, "N": 7, "O": 8, "F": 9, "Ne": 10,
             "Na": 11, "Mg": 12, "Al": 13, "Si": 14, "P": 15, "S": 16, "Cl": 17, "Ar": 18,
@@ -153,16 +142,14 @@ async def get_nuclide(identifier: str):
         if not z:
              raise HTTPException(status_code=404, detail=f"Unknown element symbol '{symbol}' for remote lookup")
 
+        # Run blocking network call in thread pool to avoid blocking event loop
         nndc_data = await asyncio.to_thread(client.get_nuclide_properties, z, a)
         
         if nndc_data:
-            # Merge: Prefer NNDC for scientific accuracy, keep ID format consistent
             merged = nndc_data.copy()
             merged["id"] = f"{symbol.upper()}-{a}"
-            merged["name"] = f"{symbol.upper()}-{a}" # Simplified name
+            merged["name"] = f"{symbol.upper()}-{a}" 
             merged["symbol"] = symbol.upper()
-            
-            # If we had local data, we could cross-reference, but for now return remote
             return merged
             
         else:
@@ -171,3 +158,11 @@ async def get_nuclide(identifier: str):
             raise HTTPException(status_code=404, detail=f"Nuclide {identifier} not found in local DB nor NNDC")
 
     return local_nuclide
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
