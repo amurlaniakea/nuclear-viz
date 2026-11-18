@@ -1,0 +1,452 @@
+const chartEl = document.getElementById('chart');
+const detailEl = document.getElementById('detail');
+const selectEl = document.getElementById('chain-select');
+
+const MODE_COLORS = {
+  alpha: '#f97316',
+  'beta-': '#38bdf8',
+  'beta+': '#a78bfa',
+  gamma: '#94a3b8',
+  stable: '#22c55e'
+};
+
+let currentChain = null;
+let selectedNuclideId = null;
+
+document.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+  try {
+    const res = await fetch('/api/chains');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    const chains = payload.chains || [];
+
+    if (!chains.length) {
+      detailEl.textContent = 'No hay cadenas disponibles.';
+      return;
+    }
+
+    selectEl.innerHTML = '';
+    for (const chain of chains) {
+      const option = document.createElement('option');
+      option.value = chain.id;
+      option.textContent = chain.name;
+      selectEl.appendChild(option);
+    }
+
+    selectEl.addEventListener('change', async () => {
+      await loadChain(selectEl.value);
+    });
+
+    await loadChain(chains[0].id);
+  } catch (error) {
+    detailEl.textContent = `Error cargando datos: ${error.message}`;
+  }
+}
+
+async function loadChain(chainId) {
+  try {
+    const res = await fetch(`/api/chains/${encodeURIComponent(chainId)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    currentChain = await res.json();
+    selectedNuclideId = currentChain.parent || currentChain.nuclides?.[0]?.id || null;
+    renderAll();
+  } catch (error) {
+    detailEl.textContent = `Error cargando cadena: ${error.message}`;
+  }
+}
+
+function renderAll() {
+  renderChart();
+  renderTable();
+  renderDetail(selectedNuclideId);
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function svgEl(tag, attrs = {}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    el.setAttribute(key, String(value));
+  }
+  return el;
+}
+
+function scaler(min, max, rangeMin, rangeMax) {
+  const span = (max - min) || 1;
+  return (value) => rangeMin + ((value - min) / span) * (rangeMax - rangeMin);
+}
+
+function makeTicks(min, max, targetCount) {
+  const span = max - min;
+  if (span <= 0) return [min];
+
+  const step = Math.max(1, Math.round(span / Math.max(1, targetCount)));
+  const ticks = [];
+  const start = Math.ceil(min / step) * step;
+
+  for (let value = start; value <= max; value += step) {
+    ticks.push(value);
+  }
+
+  return ticks;
+}
+
+function addMarker(defs, id, color) {
+  const marker = svgEl('marker', {
+    id,
+    markerWidth: 10,
+    markerHeight: 10,
+    refX: 8,
+    refY: 4,
+    orient: 'auto'
+  });
+
+  const path = svgEl('path', {
+    d: 'M0,0 L8,4 L0,8 z',
+    fill: color
+  });
+
+  marker.appendChild(path);
+  defs.appendChild(marker);
+}
+
+function edgeColor(mode) {
+  if (mode === 'alpha') return MODE_COLORS.alpha;
+  if (mode === 'beta-') return MODE_COLORS['beta-'];
+  if (mode === 'beta+' || mode === 'ec') return MODE_COLORS['beta+'];
+  return MODE_COLORS.gamma;
+}
+
+function markerForMode(mode) {
+  if (mode === 'alpha') return 'url(#arrow-alpha)';
+  if (mode === 'beta-') return 'url(#arrow-beta-minus)';
+  if (mode === 'beta+' || mode === 'ec') return 'url(#arrow-beta-plus)';
+  return '';
+}
+
+function renderChart() {
+  chartEl.innerHTML = '';
+  if (!currentChain) return;
+
+  const width = 1100;
+  const height = 760;
+  const margin = { top: 30, right: 40, bottom: 78, left: 78 };
+
+  const nuclides = (currentChain.nuclides || []).map((item) => ({
+    ...item,
+    n: item.a - item.z
+  }));
+
+  if (!nuclides.length) {
+    chartEl.textContent = 'Sin núclidos para esta cadena.';
+    return;
+  }
+
+  const byId = Object.fromEntries(nuclides.map((item) => [item.id, item]));
+
+  const minX = Math.min(...nuclides.map((item) => item.n)) - 3;
+  const maxX = Math.max(...nuclides.map((item) => item.n)) + 3;
+  const minY = Math.min(...nuclides.map((item) => item.z)) - 3;
+  const maxY = Math.max(...nuclides.map((item) => item.z)) + 3;
+
+  const xScale = scaler(minX, maxX, margin.left, width - margin.right);
+  const yScale = scaler(minY, maxY, height - margin.bottom, margin.top);
+
+  const svg = svgEl('svg', {
+    viewBox: `0 0 ${width} ${height}`,
+    width: '100%',
+    height: '100%'
+  });
+
+  const defs = svgEl('defs');
+  addMarker(defs, 'arrow-alpha', MODE_COLORS.alpha);
+  addMarker(defs, 'arrow-beta-minus', MODE_COLORS['beta-']);
+  addMarker(defs, 'arrow-beta-plus', MODE_COLORS['beta+']);
+  svg.appendChild(defs);
+
+  const xTicks = makeTicks(minX, maxX, 8);
+  const yTicks = makeTicks(minY, maxY, 8);
+
+  for (const tick of xTicks) {
+    const x = xScale(tick);
+
+    svg.appendChild(svgEl('line', {
+      x1: x,
+      y1: margin.top,
+      x2: x,
+      y2: height - margin.bottom,
+      stroke: '#0f172a',
+      'stroke-width': 1
+    }));
+
+    const text = svgEl('text', {
+      x,
+      y: height - margin.bottom + 24,
+      fill: '#64748b',
+      'font-size': 12,
+      'text-anchor': 'middle'
+    });
+
+    text.textContent = tick;
+    svg.appendChild(text);
+  }
+
+  for (const tick of yTicks) {
+    const y = yScale(tick);
+
+    svg.appendChild(svgEl('line', {
+      x1: margin.left,
+      y1: y,
+      x2: width - margin.right,
+      y2: y,
+      stroke: '#0f172a',
+      'stroke-width': 1
+    }));
+
+    const text = svgEl('text', {
+      x: margin.left - 12,
+      y: y + 4,
+      fill: '#64748b',
+      'font-size': 12,
+      'text-anchor': 'end'
+    });
+
+    text.textContent = tick;
+    svg.appendChild(text);
+  }
+
+  const xLabel = svgEl('text', {
+    x: width / 2,
+    y: height - 16,
+    fill: '#94a3b8',
+    'font-size': 15,
+    'text-anchor': 'middle'
+  });
+  xLabel.textContent = 'Número de neutrones N';
+  svg.appendChild(xLabel);
+
+  const yLabel = svgEl('text', {
+    x: 18,
+    y: height / 2,
+    fill: '#94a3b8',
+    'font-size': 15,
+    'text-anchor': 'middle',
+    transform: `rotate(-90 18 ${height / 2})`
+  });
+  yLabel.textContent = 'Número atómico Z';
+  svg.appendChild(yLabel);
+
+  for (const edge of currentChain.edges || []) {
+    const source = byId[edge.from];
+    const target = byId[edge.to];
+    if (!source || !target) continue;
+
+    const x1 = xScale(source.n);
+    const y1 = yScale(source.z);
+    const x2 = xScale(target.n);
+    const y2 = yScale(target.z);
+
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const dist = Math.hypot(dx, dy) || 1;
+
+    const padStart = 24;
+    const padEnd = 32;
+
+    const sx = x1 + (dx / dist) * padStart;
+    const sy = y1 + (dy / dist) * padStart;
+    const tx = x2 - (dx / dist) * padEnd;
+    const ty = y2 - (dy / dist) * padEnd;
+
+    const line = svgEl('line', {
+      x1: sx,
+      y1: sy,
+      x2: tx,
+      y2: ty,
+      stroke: edgeColor(edge.mode),
+      'stroke-width': 2.75,
+      opacity: 0.92
+    });
+
+    const marker = markerForMode(edge.mode);
+    if (marker) line.setAttribute('marker-end', marker);
+
+    const title = svgEl('title');
+    title.textContent = `${edge.from} -> ${edge.to} (${edge.mode}${edge.branch ? `, branch ${edge.branch}%` : ''})`;
+    line.appendChild(title);
+    svg.appendChild(line);
+  }
+
+  for (const nuclide of nuclides) {
+    const x = xScale(nuclide.n);
+    const y = yScale(nuclide.z);
+    const selected = nuclide.id === selectedNuclideId;
+
+    const g = svgEl('g', {
+      class: 'nuclide',
+      tabindex: 0
+    });
+
+    const circle = svgEl('circle', {
+      cx: x,
+      cy: y,
+      r: 20,
+      class: nuclide.stable ? 'stable-node' : 'radioactive-node'
+    });
+
+    circle.setAttribute(
+      'stroke',
+      selected ? '#facc15' : nuclide.stable ? '#22c55e' : '#64748b'
+    );
+    circle.setAttribute('stroke-width', selected ? 4 : 2);
+
+    const symbolText = svgEl('text', {
+      x,
+      y: y + 5,
+      fill: '#e2e8f0',
+      'font-size': 13,
+      'font-weight': 700,
+      'text-anchor': 'middle'
+    });
+    symbolText.textContent = nuclide.symbol;
+
+    const massText = svgEl('text', {
+      x,
+      y: y + 38,
+      fill: '#94a3b8',
+      'font-size': 12,
+      'text-anchor': 'middle'
+    });
+    massText.textContent = nuclide.a;
+
+    const title = svgEl('title');
+    title.textContent = `${nuclide.name} | Z=${nuclide.z}, N=${nuclide.n}, A=${nuclide.a} | Vida media: ${nuclide.half_life || 'desconocida'}`;
+
+    g.appendChild(circle);
+    g.appendChild(symbolText);
+    g.appendChild(massText);
+    g.appendChild(title);
+
+    g.addEventListener('click', () => {
+      selectedNuclideId = nuclide.id;
+      renderChart();
+      renderTable();
+      renderDetail(nuclide.id);
+    });
+
+    svg.appendChild(g);
+  }
+
+  chartEl.appendChild(svg);
+}
+
+function renderTable() {
+  const tbody = document.querySelector('#nuclide-table tbody');
+  if (!tbody || !currentChain) return;
+
+  tbody.innerHTML = '';
+
+  for (const nuclide of currentChain.nuclides || []) {
+    const tr = document.createElement('tr');
+
+    if (nuclide.id === selectedNuclideId) {
+      tr.classList.add('selected');
+    }
+
+    const modes = (nuclide.decay_modes || []).join(', ') || '-';
+
+    tr.innerHTML = `
+      <td>${escapeHtml(nuclide.name || nuclide.id)}</td>
+      <td>${nuclide.z}</td>
+      <td>${nuclide.a - nuclide.z}</td>
+      <td>${nuclide.a}</td>
+      <td>${escapeHtml(nuclide.half_life || '-')}</td>
+      <td>${escapeHtml(modes)}</td>
+      <td>${nuclide.stable ? 'sí' : 'no'}</td>
+    `;
+
+    tr.addEventListener('click', () => {
+      selectedNuclideId = nuclide.id;
+      renderChart();
+      renderTable();
+      renderDetail(nuclide.id);
+    });
+
+    tbody.appendChild(tr);
+  }
+}
+
+function renderDetail(nuclideId) {
+  if (!currentChain) return;
+
+  const nuclide = (currentChain.nuclides || []).find((item) => item.id === nuclideId);
+
+  if (!nuclide) {
+    detailEl.innerHTML = '<p>Selecciona un núclido.</p>';
+    return;
+  }
+
+  const outgoing = (currentChain.edges || []).filter((edge) => edge.from === nuclide.id);
+  const incoming = (currentChain.edges || []).filter((edge) => edge.to === nuclide.id);
+
+  const modes = (nuclide.decay_modes || [])
+    .map((mode) => `<span class="pill">${escapeHtml(mode)}</span>`)
+    .join('') || '<span class="pill">-</span>';
+
+  const outgoingHtml = outgoing.length
+    ? outgoing
+        .map((edge) => {
+          return `<li>${escapeHtml(edge.to)} <span class="pill">${escapeHtml(edge.mode)}</span>${
+            edge.branch ? ` (${edge.branch}%)` : ''
+          }</li>`;
+        })
+        .join('')
+    : '<li>-</li>';
+
+  const incomingHtml = incoming.length
+    ? incoming
+        .map((edge) => {
+          return `<li>${escapeHtml(edge.from)} <span class="pill">${escapeHtml(edge.mode)}</span>${
+            edge.branch ? ` (${edge.branch}%)` : ''
+          }</li>`;
+        })
+        .join('')
+    : '<li>-</li>';
+
+  detailEl.innerHTML = `
+    <h2>${escapeHtml(nuclide.name || nuclide.id)}</h2>
+
+    <div class="detail-label">Cadena</div>
+    <div>${escapeHtml(currentChain.name)}</div>
+
+    <div class="detail-label">Z / N / A</div>
+    <div>${nuclide.z} / ${nuclide.a - nuclide.z} / ${nuclide.a}</div>
+
+    <div class="detail-label">Vida media</div>
+    <div>${escapeHtml(nuclide.half_life || '-')}</div>
+
+    <div class="detail-label">Modos de decaimiento</div>
+    <div>${modes}</div>
+
+    <div class="detail-label">Decaimientos salientes</div>
+    <ul>${outgoingHtml}</ul>
+
+    <div class="detail-label">Decaimientos entrantes</div>
+    <ul>${incomingHtml}</ul>
+
+    <div class="detail-label">Nota</div>
+    <div>
+      Los datos de esta cadena están simplificados con fines educativos.
+      La siguiente etapa conectará ENSDF/EXFOR.
+    </div>
+  `;
+}
