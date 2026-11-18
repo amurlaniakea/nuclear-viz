@@ -1,5 +1,9 @@
 # ☢ Nuclear Viz
 
+[![CI](https://github.com/amurlaniakea/nuclear-viz/actions/workflows/ci.yml/badge.svg)](https://github.com/amurlaniakea/nuclear-viz/actions/workflows/ci.yml)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+
 Visualización educativa de física nuclear: cadenas de decaimiento, carta de núclidos y base para integrar ENSDF/EXFOR.
 
 ## MVP actual
@@ -45,3 +49,13 @@ No usar para protección radiológica ni cálculos de seguridad.
 - [ ] Diagramas de niveles gamma.
 - [ ] Búsqueda global de núclidos.
 - [ ] Exportar SVG/PNG.
+
+## Licencia
+
+AGPL-3.0-or-later. Ver [`LICENSE`](LICENSE).
+
+## Verificación
+
+- `pytest` valida la API y las invariantes de los datos de decaimiento.
+- Los datos incluidos están simplificados y acotados a fines educativos.
+- No usar para protección radiológica ni cálculos de seguridad.

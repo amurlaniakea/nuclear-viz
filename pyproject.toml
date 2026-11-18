@@ -1,6 +1,6 @@
 [project]
 name = "nuclear-viz"
-version = "0.1.0"
+version = "0.2.0"
 description = "Educational nuclear physics visualization: decay chains and nuclide chart."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,6 +29,9 @@ backend = ["data/*.json", "static/*"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+filterwarnings = [
+  "ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning",
+]
 
 [tool.ruff]
 line-length = 100

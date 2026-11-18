@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Nuclear Viz",
-    version="0.1.0",
+    version="0.2.0",
     description="Visualización educativa de cadenas de decaimiento nuclear.",
     lifespan=lifespan,
 )
