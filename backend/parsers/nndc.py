@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -10,9 +11,6 @@ NNDC_BASE_URL = "https://www.nndc.bnl.gov/endb/rest/v1"
 class NNDCClient:
     """
     Cliente mínimo para la API REST del National Nuclear Data Center (NNDC).
-    Endpoint usado: /nuclide/{Z}/{A}/properties
-    
-    Nota: La API puede cambiar. Se recomienda cachear respuestas en producción.
     """
 
     def __init__(self, timeout: float = 10.0):
@@ -22,13 +20,6 @@ class NNDCClient:
     def get_nuclide_properties(self, z: int, a: int) -> dict[str, Any] | None:
         """
         Obtiene propiedades básicas de un núclido desde NNDC.
-        
-        Args:
-            z: Número atómico (protones)
-            a: Número másico
-            
-        Returns:
-            Diccionario con datos normalizados o None si falla/no existe.
         """
         url = f"{NNDC_BASE_URL}/nuclide/{z}/{a}/properties"
         
@@ -41,18 +32,21 @@ class NNDCClient:
             raw_data = response.json()
             return self._normalize(raw_data, z, a)
             
-        except httpx.HTTPError as exc:
-            # En producción, usar logger.warning en lugar de print
-            print(f"[NNDCClient] Error fetching {z}-{a}: {exc}")
+        except httpx.HTTPStatusError as exc:
+            print(f"[NNDCClient] HTTP Error {exc.response.status_code} for {z}-{a}")
             return None
-        except Exception as exc:
-            print(f"[NNDCClient] Unexpected error parsing {z}-{a}: {exc}")
+        except httpx.RequestError as exc:
+            print(f"[NNDCClient] Connection Error for {z}-{a}: {exc}")
+            return None
+        except json.JSONDecodeError as exc:
+            print(f"[NNDCClient] JSON Decode Error for {z}-{a}: {exc}")
+            return None
+        except (KeyError, TypeError, ValueError) as exc:
+            # Errores de estructura de datos inesperada
+            print(f"[NNDCClient] Data Structure Error for {z}-{a}: {exc}")
             return None
 
     def _normalize(self, raw: dict[str, Any], z: int, a: int) -> dict[str, Any]:
-        """
-        Normaliza la respuesta cruda de NNDC a nuestro esquema interno.
-        """
         result = {
             "z": z,
             "a": a,
@@ -66,7 +60,6 @@ class NNDCClient:
 
         properties = raw.get("properties", {})
         
-        # Estabilidad
         stability_info = properties.get("stability", {})
         is_stable_str = stability_info.get("isStable", "")
         if isinstance(is_stable_str, str):
@@ -74,7 +67,6 @@ class NNDCClient:
         elif isinstance(is_stable_str, bool):
             result["stable"] = is_stable_str
         
-        # Vida media
         half_life_info = properties.get("halfLife", {})
         hl_value = half_life_info.get("value")
         hl_unit = half_life_info.get("unit", "")
@@ -84,7 +76,6 @@ class NNDCClient:
             clean_unit = unit_map.get(hl_unit, hl_unit)
             result["half_life"] = f"{hl_value} {clean_unit}"
         
-        # Modos de decaimiento
         decay_info = properties.get("decayModes", [])
         modes = []
         if isinstance(decay_info, list):
