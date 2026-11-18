@@ -1,0 +1,209 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: #020617;
+  color: #e2e8f0;
+}
+
+header {
+  padding: 24px 28px 8px;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 2rem;
+}
+
+header p {
+  margin: 0;
+  color: #94a3b8;
+}
+
+main {
+  padding: 20px 28px 40px;
+  display: grid;
+  gap: 18px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: #0f172a;
+}
+
+label {
+  color: #94a3b8;
+}
+
+select {
+  background: #020617;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-width: min(420px, 100%);
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-left: auto;
+  color: #cbd5e1;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.swatch.alpha {
+  background: #f97316;
+}
+
+.swatch.beta-minus {
+  background: #38bdf8;
+}
+
+.swatch.beta-plus {
+  background: #a78bfa;
+}
+
+.swatch.stable {
+  background: #22c55e;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+#chart {
+  min-height: 720px;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: #020617;
+  overflow: auto;
+}
+
+#detail {
+  padding: 16px;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: #0f172a;
+  min-height: 720px;
+  line-height: 1.45;
+}
+
+#detail h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.detail-label {
+  color: #94a3b8;
+  font-size: 0.92rem;
+  margin-top: 12px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 2px 6px 2px 0;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: #020617;
+}
+
+#detail ul {
+  margin: 8px 0;
+  padding-left: 18px;
+}
+
+#detail li {
+  margin: 4px 0;
+}
+
+.table-section {
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: #0f172a;
+  padding: 16px;
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 10px;
+  border-bottom: 1px solid #1e293b;
+  text-align: left;
+}
+
+th {
+  color: #94a3b8;
+  font-size: 0.92rem;
+}
+
+tbody tr:hover,
+tbody tr.selected {
+  background: #082f49;
+  cursor: pointer;
+}
+
+svg text {
+  user-select: none;
+}
+
+.nuclide {
+  cursor: pointer;
+}
+
+.nuclide:focus {
+  outline: 2px solid #facc15;
+}
+
+.radioactive-node {
+  fill: #082f49;
+}
+
+.stable-node {
+  fill: #052e16;
+}
+
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  #detail {
+    min-height: 220px;
+  }
+}

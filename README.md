@@ -1,5 +1,12 @@
 # ☢ Nuclear Viz
 
+## 🌐 Live Demo
+
+Visita la demo estática en: [https://amurlaniakea.github.io/nuclear-viz/](https://amurlaniakea.github.io/nuclear-viz/)
+
+Esta demo utiliza datos pre-generados en `site/data/`. Para probar la integración completa con NNDC, ejecuta el backend localmente.
+
+
 [![CI](https://github.com/amurlaniakea/nuclear-viz/actions/workflows/ci.yml/badge.svg)](https://github.com/amurlaniakea/nuclear-viz/actions/workflows/ci.yml)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)

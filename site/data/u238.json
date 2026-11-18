@@ -1,0 +1,272 @@
+{
+  "id": "u238",
+  "name": "Serie del Uranio-238 (4n+2)",
+  "parent": "U-238",
+  "description": "Cadena natural U-238 -> Pb-206, simplificada para docencia.",
+  "nuclides": [
+    {
+      "id": "U-238",
+      "z": 92,
+      "a": 238,
+      "symbol": "U",
+      "name": "Uranio-238",
+      "half_life": "4.468e9 y",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Th-234",
+      "z": 90,
+      "a": 234,
+      "symbol": "Th",
+      "name": "Torio-234",
+      "half_life": "24.10 d",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Pa-234m",
+      "z": 91,
+      "a": 234,
+      "symbol": "Pa",
+      "name": "Protactinio-234m",
+      "half_life": "1.17 min",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "U-234",
+      "z": 92,
+      "a": 234,
+      "symbol": "U",
+      "name": "Uranio-234",
+      "half_life": "2.455e5 y",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Th-230",
+      "z": 90,
+      "a": 230,
+      "symbol": "Th",
+      "name": "Torio-230",
+      "half_life": "7.54e4 y",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Ra-226",
+      "z": 88,
+      "a": 226,
+      "symbol": "Ra",
+      "name": "Radio-226",
+      "half_life": "1600 y",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Rn-222",
+      "z": 86,
+      "a": 222,
+      "symbol": "Rn",
+      "name": "Rad\u00f3n-222",
+      "half_life": "3.823 d",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Po-218",
+      "z": 84,
+      "a": 218,
+      "symbol": "Po",
+      "name": "Polonio-218",
+      "half_life": "3.10 min",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Pb-214",
+      "z": 82,
+      "a": 214,
+      "symbol": "Pb",
+      "name": "Plomo-214",
+      "half_life": "26.8 min",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Bi-214",
+      "z": 83,
+      "a": 214,
+      "symbol": "Bi",
+      "name": "Bismuto-214",
+      "half_life": "19.9 min",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Po-214",
+      "z": 84,
+      "a": 214,
+      "symbol": "Po",
+      "name": "Polonio-214",
+      "half_life": "164 us",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Pb-210",
+      "z": 82,
+      "a": 210,
+      "symbol": "Pb",
+      "name": "Plomo-210",
+      "half_life": "22.3 y",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Bi-210",
+      "z": 83,
+      "a": 210,
+      "symbol": "Bi",
+      "name": "Bismuto-210",
+      "half_life": "5.01 d",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Po-210",
+      "z": 84,
+      "a": 210,
+      "symbol": "Po",
+      "name": "Polonio-210",
+      "half_life": "138.4 d",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Pb-206",
+      "z": 82,
+      "a": 206,
+      "symbol": "Pb",
+      "name": "Plomo-206",
+      "half_life": "estable",
+      "stable": true,
+      "decay_modes": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "U-238",
+      "to": "Th-234",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Th-234",
+      "to": "Pa-234m",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Pa-234m",
+      "to": "U-234",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "U-234",
+      "to": "Th-230",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Th-230",
+      "to": "Ra-226",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Ra-226",
+      "to": "Rn-222",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Rn-222",
+      "to": "Po-218",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Po-218",
+      "to": "Pb-214",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Pb-214",
+      "to": "Bi-214",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Bi-214",
+      "to": "Po-214",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Po-214",
+      "to": "Pb-210",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Pb-210",
+      "to": "Bi-210",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Bi-210",
+      "to": "Po-210",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Po-210",
+      "to": "Pb-206",
+      "mode": "alpha",
+      "branch": 100
+    }
+  ]
+}

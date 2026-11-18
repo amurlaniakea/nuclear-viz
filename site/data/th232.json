@@ -1,0 +1,225 @@
+{
+  "id": "th232",
+  "name": "Serie del Torio-232 (4n)",
+  "parent": "Th-232",
+  "description": "Cadena natural Th-232 -> Pb-208, simplificada para docencia.",
+  "nuclides": [
+    {
+      "id": "Th-232",
+      "z": 90,
+      "a": 232,
+      "symbol": "Th",
+      "name": "Torio-232",
+      "half_life": "1.405e10 y",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Ra-228",
+      "z": 88,
+      "a": 228,
+      "symbol": "Ra",
+      "name": "Radio-228",
+      "half_life": "5.75 y",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Ac-228",
+      "z": 89,
+      "a": 228,
+      "symbol": "Ac",
+      "name": "Actinio-228",
+      "half_life": "6.15 h",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Th-228",
+      "z": 90,
+      "a": 228,
+      "symbol": "Th",
+      "name": "Torio-228",
+      "half_life": "1.91 y",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Ra-224",
+      "z": 88,
+      "a": 224,
+      "symbol": "Ra",
+      "name": "Radio-224",
+      "half_life": "3.63 d",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Rn-220",
+      "z": 86,
+      "a": 220,
+      "symbol": "Rn",
+      "name": "Rad\u00f3n-220",
+      "half_life": "55.6 s",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Po-216",
+      "z": 84,
+      "a": 216,
+      "symbol": "Po",
+      "name": "Polonio-216",
+      "half_life": "0.145 s",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Pb-212",
+      "z": 82,
+      "a": 212,
+      "symbol": "Pb",
+      "name": "Plomo-212",
+      "half_life": "10.64 h",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Bi-212",
+      "z": 83,
+      "a": 212,
+      "symbol": "Bi",
+      "name": "Bismuto-212",
+      "half_life": "60.55 min",
+      "stable": false,
+      "decay_modes": [
+        "beta-",
+        "alpha"
+      ]
+    },
+    {
+      "id": "Po-212",
+      "z": 84,
+      "a": 212,
+      "symbol": "Po",
+      "name": "Polonio-212",
+      "half_life": "0.30 us",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Tl-208",
+      "z": 81,
+      "a": 208,
+      "symbol": "Tl",
+      "name": "Talio-208",
+      "half_life": "3.05 min",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Pb-208",
+      "z": 82,
+      "a": 208,
+      "symbol": "Pb",
+      "name": "Plomo-208",
+      "half_life": "estable",
+      "stable": true,
+      "decay_modes": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "Th-232",
+      "to": "Ra-228",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Ra-228",
+      "to": "Ac-228",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Ac-228",
+      "to": "Th-228",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Th-228",
+      "to": "Ra-224",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Ra-224",
+      "to": "Rn-220",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Rn-220",
+      "to": "Po-216",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Po-216",
+      "to": "Pb-212",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Pb-212",
+      "to": "Bi-212",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Bi-212",
+      "to": "Po-212",
+      "mode": "beta-",
+      "branch": 64
+    },
+    {
+      "from": "Bi-212",
+      "to": "Tl-208",
+      "mode": "alpha",
+      "branch": 36
+    },
+    {
+      "from": "Po-212",
+      "to": "Pb-208",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Tl-208",
+      "to": "Pb-208",
+      "mode": "beta-",
+      "branch": 100
+    }
+  ]
+}

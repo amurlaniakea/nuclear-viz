@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nuclear Viz | Live Demo</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+  <link rel="stylesheet" href="./assets/style.css" />
+</head>
+<body>
+  <header>
+    <h1>☢ Nuclear Viz</h1>
+    <p>Visualización educativa de cadenas de decaimiento nuclear</p>
+    <p style="font-size:0.8em; color:#64748b;">Demo estática • Datos locales simplificados</p>
+  </header>
+
+  <main>
+    <section class="controls">
+      <label for="chain-select">Cadena:</label>
+      <select id="chain-select"></select>
+
+      <div class="legend">
+        <span class="legend-item"><span class="swatch alpha"></span>α</span>
+        <span class="legend-item"><span class="swatch beta-minus"></span>β−</span>
+        <span class="legend-item"><span class="swatch beta-plus"></span>β+/EC</span>
+        <span class="legend-item"><span class="swatch stable"></span>estable</span>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div id="chart" aria-label="Carta de núclidos de la cadena seleccionada"></div>
+      <aside id="detail">Cargando...</aside>
+    </section>
+
+    <section class="table-section">
+      <h2>Núclidos</h2>
+      <table id="nuclide-table">
+        <thead>
+          <tr>
+            <th>Núclido</th>
+            <th>Z</th>
+            <th>N</th>
+            <th>A</th>
+            <th>Vida media</th>
+            <th>Modos</th>
+            <th>Estable</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

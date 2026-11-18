@@ -1,0 +1,218 @@
+{
+  "id": "u235",
+  "name": "Serie del Actinio (U-235, 4n+3)",
+  "parent": "U-235",
+  "description": "Cadena natural U-235 -> Pb-207, simplificada para docencia.",
+  "nuclides": [
+    {
+      "id": "U-235",
+      "z": 92,
+      "a": 235,
+      "symbol": "U",
+      "name": "Uranio-235",
+      "half_life": "7.04e8 y",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Th-231",
+      "z": 90,
+      "a": 231,
+      "symbol": "Th",
+      "name": "Torio-231",
+      "half_life": "25.5 h",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Pa-231",
+      "z": 91,
+      "a": 231,
+      "symbol": "Pa",
+      "name": "Protactinio-231",
+      "half_life": "3.276e4 y",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Ac-227",
+      "z": 89,
+      "a": 227,
+      "symbol": "Ac",
+      "name": "Actinio-227",
+      "half_life": "21.77 y",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Th-227",
+      "z": 90,
+      "a": 227,
+      "symbol": "Th",
+      "name": "Torio-227",
+      "half_life": "18.7 d",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Ra-223",
+      "z": 88,
+      "a": 223,
+      "symbol": "Ra",
+      "name": "Radio-223",
+      "half_life": "11.43 d",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Rn-219",
+      "z": 86,
+      "a": 219,
+      "symbol": "Rn",
+      "name": "Rad\u00f3n-219",
+      "half_life": "3.96 s",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Po-215",
+      "z": 84,
+      "a": 215,
+      "symbol": "Po",
+      "name": "Polonio-215",
+      "half_life": "1.78 ms",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Pb-211",
+      "z": 82,
+      "a": 211,
+      "symbol": "Pb",
+      "name": "Plomo-211",
+      "half_life": "36.1 min",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Bi-211",
+      "z": 83,
+      "a": 211,
+      "symbol": "Bi",
+      "name": "Bismuto-211",
+      "half_life": "2.14 min",
+      "stable": false,
+      "decay_modes": [
+        "alpha"
+      ]
+    },
+    {
+      "id": "Tl-207",
+      "z": 81,
+      "a": 207,
+      "symbol": "Tl",
+      "name": "Talio-207",
+      "half_life": "4.77 min",
+      "stable": false,
+      "decay_modes": [
+        "beta-"
+      ]
+    },
+    {
+      "id": "Pb-207",
+      "z": 82,
+      "a": 207,
+      "symbol": "Pb",
+      "name": "Plomo-207",
+      "half_life": "estable",
+      "stable": true,
+      "decay_modes": []
+    }
+  ],
+  "edges": [
+    {
+      "from": "U-235",
+      "to": "Th-231",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Th-231",
+      "to": "Pa-231",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Pa-231",
+      "to": "Ac-227",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Ac-227",
+      "to": "Th-227",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Th-227",
+      "to": "Ra-223",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Ra-223",
+      "to": "Rn-219",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Rn-219",
+      "to": "Po-215",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Po-215",
+      "to": "Pb-211",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Pb-211",
+      "to": "Bi-211",
+      "mode": "beta-",
+      "branch": 100
+    },
+    {
+      "from": "Bi-211",
+      "to": "Tl-207",
+      "mode": "alpha",
+      "branch": 100
+    },
+    {
+      "from": "Tl-207",
+      "to": "Pb-207",
+      "mode": "beta-",
+      "branch": 100
+    }
+  ]
+}

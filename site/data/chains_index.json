@@ -1,0 +1,19 @@
+{
+  "chains": [
+    {
+      "id": "u238",
+      "name": "Serie del Uranio-238 (4n+2)",
+      "parent": "U-238"
+    },
+    {
+      "id": "th232",
+      "name": "Serie del Torio-232 (4n)",
+      "parent": "Th-232"
+    },
+    {
+      "id": "u235",
+      "name": "Serie del Actinio (U-235, 4n+3)",
+      "parent": "U-235"
+    }
+  ]
+}
