@@ -3,6 +3,7 @@ name = "nuclear-viz"
 version = "0.3.2"
 description = "Educational nuclear physics visualization: decay chains and nuclide chart."
 readme = "README.md"
+license = "AGPL-3.0-or-later"
 requires-python = ">=3.10"
 dependencies = [
   "fastapi>=0.115",
