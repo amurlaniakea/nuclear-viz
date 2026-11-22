@@ -57,6 +57,12 @@ No usar para protección radiológica ni cálculos de seguridad.
 - [ ] Búsqueda global de núclidos.
 - [ ] Exportar SVG/PNG.
 
+## 📧 Contacto
+
+- **Autor**: Pedro Sordo Martínez
+- **e-mail**: amurlaniakea@gmail.com
+- **Hugging Face**: [MagoPredator](https://huggingface.co/MagoPredator)
+
 ## Licencia
 
 AGPL-3.0-or-later. Ver [`LICENSE`](LICENSE).
