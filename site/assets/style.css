@@ -227,3 +227,8 @@ svg text {
     font-size: 0.85rem;
   }
 }
+
+/* Icono ☢ antes del nombre, en amarillo */
+.logo-icon {
+  color: #facc15;
+}

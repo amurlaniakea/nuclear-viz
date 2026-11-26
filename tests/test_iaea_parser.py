@@ -108,3 +108,10 @@ def test_network_error_is_unavailable():
 def test_garbage_csv_is_unavailable():
     with pytest.raises(IAEAUnavailable):
         _client(lambda req: httpx.Response(200, text="<html>x</html>\nfoo")).get_nuclide_properties("Pb", 206)
+
+
+def test_half_life_exponent_lowercase():
+    row = {"half_life": "4.468E9", "unit_hl": "Y", "half_life_sec": "1.4e17", "decay_1": "A", "decay_2": "SF"}
+    r = IAEAClient._normalize(row, 92, 146)
+    assert r["half_life"] == "4.468e9 y"
+    assert r["decay_modes"] == ["alpha", "sf"]

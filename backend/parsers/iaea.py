@@ -22,6 +22,7 @@ from __future__ import annotations
 import csv
 import io
 import logging
+import re
 from typing import Any
 
 import httpx
@@ -98,6 +99,8 @@ class IAEAClient:
     def _normalize(cls, row: dict[str, str], z: int, n: int) -> dict[str, Any]:
         a = z + n
         raw_hl = (row.get("half_life") or "").strip()
+        # Livechart devuelve "4.468E9": se muestra como "4.468e9".
+        raw_hl = re.sub(r"(?<=\d)E(?=[+-]?\d)", "e", raw_hl)
         unit = (row.get("unit_hl") or "").strip()
         stable = raw_hl.upper() == "STABLE"
 
