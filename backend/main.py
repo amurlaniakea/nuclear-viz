@@ -40,7 +40,8 @@ BASE_DIR = Path(__file__).resolve().parent
 REMOTE_CACHE_TTL = 3600  # segundos
 REMOTE_CACHE_MAX = 512
 DATA_FILE = BASE_DIR / "data" / "decay_chains.json"
-STATIC_DIR = BASE_DIR / "static"
+STATIC_DIR = BASE_DIR / "static"  # index.html del modo API
+SITE_DIR = BASE_DIR.parent / "site"  # app.js, assets/ y data/ compartidos con la demo de Pages
 
 # Mapa Z para lookup rápido (evita depender de librerías externas pesadas)
 Z_LOOKUP = {
@@ -82,6 +83,8 @@ async def lifespan(app: FastAPI):
         raise RuntimeError(f"Missing data file: {DATA_FILE}")
     if not STATIC_DIR.exists():
         raise RuntimeError(f"Missing static dir: {STATIC_DIR}")
+    if not (SITE_DIR / "app.js").exists():
+        raise RuntimeError(f"Missing frontend assets (site/app.js) in: {SITE_DIR}")
     app.state.data = load_data()
     app.state.remote_cache = {}
     yield
@@ -221,4 +224,4 @@ def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static", StaticFiles(directory=SITE_DIR), name="static")

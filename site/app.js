@@ -10,6 +10,24 @@ const MODE_COLORS = {
   stable: '#22c55e'
 };
 
+// Modo de datos: lo fija cada index.html con <meta name="nv-mode" content="api|static">.
+//   api    -> backend FastAPI (/api/...)        static -> JSON precomputados (GitHub Pages)
+const MODE = document.querySelector('meta[name="nv-mode"]')?.content === 'static' ? 'static' : 'api';
+const ENDPOINTS = {
+  api: {
+    chains: () => '/api/chains',
+    chain: (id) => `/api/chains/${encodeURIComponent(id)}`,
+    note: 'Los datos de esta cadena están simplificados con fines educativos. ' +
+      'Los núclidos fuera del dataset local se consultan en /api/nuclide/Símbolo-A (IAEA Livechart, ENSDF).'
+  },
+  static: {
+    chains: () => './data/chains_index.json',
+    chain: (id) => `./data/${encodeURIComponent(id)}.json`,
+    note: 'Los datos de esta cadena están simplificados con fines educativos. ' +
+      'La consulta remota (IAEA Livechart) requiere el servidor backend.'
+  }
+}[MODE];
+
 let currentChain = null;
 let selectedNuclideId = null;
 
@@ -17,8 +35,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   try {
-    // CARGA ESTÁTICA: Leemos el índice local
-    const res = await fetch('./data/chains_index.json');
+    const res = await fetch(ENDPOINTS.chains());
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const payload = await res.json();
     const chains = payload.chains || [];
@@ -48,8 +65,7 @@ async function init() {
 
 async function loadChain(chainId) {
   try {
-    // CARGA ESTÁTICA: Leemos el JSON específico de la cadena
-    const res = await fetch(`./data/${encodeURIComponent(chainId)}.json`);
+    const res = await fetch(ENDPOINTS.chain(chainId));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     currentChain = await res.json();
     selectedNuclideId = currentChain.parent || currentChain.nuclides?.[0]?.id || null;
@@ -446,9 +462,6 @@ function renderDetail(nuclideId) {
     <ul>${incomingHtml}</ul>
 
     <div class="detail-label">Nota</div>
-    <div>
-      Los datos de esta cadena están simplificados con fines educativos.
-      La consulta remota (IAEA Livechart) requiere el servidor backend.
-    </div>
+    <div>${escapeHtml(ENDPOINTS.note)}</div>
   `;
 }
