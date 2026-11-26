@@ -448,7 +448,7 @@ function renderDetail(nuclideId) {
     <div class="detail-label">Nota</div>
     <div>
       Los datos de esta cadena están simplificados con fines educativos.
-      La fuente real disponible vía API NNDC requiere servidor backend.
+      La consulta remota (IAEA Livechart) requiere el servidor backend.
     </div>
   `;
 }

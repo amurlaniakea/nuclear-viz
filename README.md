@@ -4,7 +4,7 @@
 
 Visita la demo estática en: [https://amurlaniakea.github.io/nuclear-viz/](https://amurlaniakea.github.io/nuclear-viz/)
 
-Esta demo utiliza datos pre-generados en `site/data/`. Para probar la integración completa con NNDC, ejecuta el backend localmente.
+Esta demo utiliza datos pre-generados en `site/data/`. Para probar la consulta remota de núclidos (IAEA Livechart), ejecuta el backend localmente.
 
 
 [![CI](https://github.com/amurlaniakea/nuclear-viz/actions/workflows/ci.yml/badge.svg)](https://github.com/amurlaniakea/nuclear-viz/actions/workflows/ci.yml)
@@ -36,6 +36,8 @@ En Debian/Ubuntu/WSL:
 
     bash run.sh
 
+Por defecto escucha solo en 127.0.0.1. Para exponerlo en la red local: `HOST=0.0.0.0 bash run.sh`.
+
 Luego abrir:
 
     http://localhost:8000
@@ -43,6 +45,12 @@ Luego abrir:
 ## Tests
 
     ./.venv/bin/pytest
+
+## Fuente de datos remota
+
+Los núclidos que no están en el dataset local se consultan a la API pública de
+[IAEA Livechart](https://nds.iaea.org/relnsd/vcharthtml/api_v0_guide.html) (datos ENSDF),
+con caché en memoria de 1 h. Revisa sus condiciones de uso antes de redistribuir datos.
 
 ## Aviso
 

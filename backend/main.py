@@ -23,7 +23,10 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -31,9 +34,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.parsers.nndc import NNDCClient
+from backend.parsers.iaea import IAEAClient, IAEAUnavailable
 
 BASE_DIR = Path(__file__).resolve().parent
+REMOTE_CACHE_TTL = 3600  # segundos
+REMOTE_CACHE_MAX = 512
 DATA_FILE = BASE_DIR / "data" / "decay_chains.json"
 STATIC_DIR = BASE_DIR / "static"
 
@@ -48,8 +53,23 @@ Z_LOOKUP = {
     "Cs": 55, "Ba": 56, "La": 57, "Ce": 58, "Pr": 59, "Nd": 60, "Pm": 61, "Sm": 62, "Eu": 63, "Gd": 64,
     "Tb": 65, "Dy": 66, "Ho": 67, "Er": 68, "Tm": 69, "Yb": 70, "Lu": 71, "Hf": 72, "Ta": 73, "W": 74,
     "Re": 75, "Os": 76, "Ir": 77, "Pt": 78, "Au": 79, "Hg": 80, "Tl": 81, "Pb": 82, "Bi": 83, "Po": 84,
-    "At": 85, "Rn": 86, "Fr": 87, "Ra": 88, "Ac": 89, "Th": 90, "Pa": 91, "U": 92, "Np": 93, "Pu": 94
+    "At": 85, "Rn": 86, "Fr": 87, "Ra": 88, "Ac": 89, "Th": 90, "Pa": 91, "U": 92, "Np": 93, "Pu": 94,
+    "Am": 95, "Cm": 96, "Bk": 97, "Cf": 98, "Es": 99, "Fm": 100, "Md": 101, "No": 102, "Lr": 103,
+    "Rf": 104, "Db": 105, "Sg": 106, "Bh": 107, "Hs": 108, "Mt": 109, "Ds": 110, "Rg": 111,
+    "Cn": 112, "Nh": 113, "Fl": 114, "Mc": 115, "Lv": 116, "Ts": 117, "Og": 118,
 }
+
+
+def _app_version() -> str:
+    """Versión única: la de pyproject.toml (evita desincronización)."""
+    try:
+        return pkg_version("nuclear-viz")
+    except PackageNotFoundError:
+        return "0.0.0+local"
+
+
+# Identificador: Símbolo-A con sufijo opcional de isómero (p. ej. Pa-234m)
+NUCLIDE_RE = re.compile(r"^([A-Za-z]{1,2})-(\d{1,3})(m\d?)?$")
 
 
 def load_data() -> dict:
@@ -63,12 +83,13 @@ async def lifespan(app: FastAPI):
     if not STATIC_DIR.exists():
         raise RuntimeError(f"Missing static dir: {STATIC_DIR}")
     app.state.data = load_data()
+    app.state.remote_cache = {}
     yield
 
 
 app = FastAPI(
     title="Nuclear Viz",
-    version="0.3.2",
+    version=_app_version(),
     description="Visualización educativa de cadenas de decaimiento nuclear.",
     lifespan=lifespan,
 )
@@ -76,7 +97,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
@@ -113,28 +134,31 @@ def get_chain(chain_id: str):
     raise HTTPException(status_code=404, detail=f"Chain '{chain_id}' not found")
 
 
-@app.get("/api/nuclide/{identifier}", summary="Get nuclide details from local cache or NNDC")
+@app.get("/api/nuclide/{identifier}", summary="Get nuclide details from local dataset or IAEA Livechart")
 async def get_nuclide(identifier: str, request: Request):
     """
     Identifier format: Symbol-Mass (e.g., 'U-238', 'Pb-206')
-    Tries local chains first. If not found or ?force_remote=true, queries NNDC.
+    Tries local chains first. If not found or ?force_remote=true, queries IAEA Livechart (ENSDF).
     """
-    match = re.match(r"^([A-Za-z]+)-(\d+)$", identifier)
+    match = NUCLIDE_RE.match(identifier)
     if not match:
-        raise HTTPException(status_code=400, detail="Invalid identifier format. Use Symbol-A (e.g., U-238)")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid identifier format. Use Symbol-A (e.g., U-238, Pa-234m)",
+        )
 
-    symbol, mass_str = match.groups()
-    try:
-        a = int(mass_str)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Mass number must be integer")
+    raw_symbol, mass_str, isomer = match.groups()
+    # Los símbolos químicos son Capitalizados ("Pb"), no MAYÚSCULAS ("PB").
+    symbol = raw_symbol.capitalize()
+    a = int(mass_str)
+    canonical_id = f"{symbol}-{a}{isomer or ''}"
 
-    # 1. Check local data
+    # 1. Check local data (por id canónico: soporta isómeros como Pa-234m)
     data = app.state.data
     local_nuclide = None
     for chain in data.get("chains", []):
         for nuclide in chain.get("nuclides", []):
-            if nuclide["symbol"] == symbol.upper() and nuclide["a"] == a:
+            if nuclide.get("id") == canonical_id:
                 local_nuclide = nuclide.copy()
                 local_nuclide["source"] = "Local Educational Dataset"
                 break
@@ -148,29 +172,46 @@ async def get_nuclide(identifier: str, request: Request):
     if local_nuclide and not force_remote:
         return local_nuclide
 
-    # Si no hay local O se fuerza remoto, ir a NNDC
-    z = Z_LOOKUP.get(symbol.upper())
+    # Si no hay local O se fuerza remoto, ir al servicio remoto (IAEA)
+    if isomer:
+        # Livechart (ground_states) no distingue isómeros: no inventamos datos.
+        raise HTTPException(
+            status_code=404,
+            detail=f"Isomer {canonical_id} is only available in the local dataset",
+        )
+    z = Z_LOOKUP.get(symbol)
     if not z:
         raise HTTPException(status_code=404, detail=f"Unknown element symbol '{symbol}' for remote lookup")
 
-    # Creamos un cliente NUEVO cada vez para facilitar el mocking en tests
-    # y evitar estados globales sucios. En producción real, se optimizaría con pooling/cache.
-    client = NNDCClient()
+    # Caché TTL en memoria: evita golpear el servicio remoto con peticiones repetidas.
+    cache = app.state.remote_cache
+    hit = cache.get(canonical_id)
+    if hit and time.monotonic() - hit[0] < REMOTE_CACHE_TTL:
+        return hit[1]
+
+    # Cliente nuevo por petición: facilita el mocking y evita estado global compartido.
+    client = IAEAClient()
     try:
-        nndc_data = await asyncio.to_thread(client.get_nuclide_properties, z, a)
-        
-        if nndc_data:
-            merged = nndc_data.copy()
-            merged["id"] = f"{symbol.upper()}-{a}"
-            merged["name"] = f"{symbol.upper()}-{a}" 
-            merged["symbol"] = symbol.upper()
-            return merged
-            
-        else:
-            # Si NNDC falla/no encuentra, pero tenemos local, devolvemos local (fallback suave)
+        try:
+            remote = await asyncio.to_thread(client.get_nuclide_properties, symbol, a)
+        except IAEAUnavailable:
             if local_nuclide:
-                return local_nuclide
-            raise HTTPException(status_code=404, detail=f"Nuclide {identifier} not found in local DB nor NNDC")
+                return local_nuclide  # fallback suave al dataset local
+            raise HTTPException(status_code=502, detail="Remote nuclear data service unavailable")
+
+        if remote:
+            merged = remote.copy()
+            merged["id"] = canonical_id
+            merged["name"] = canonical_id
+            merged["symbol"] = symbol
+            if len(cache) >= REMOTE_CACHE_MAX:
+                cache.pop(next(iter(cache)))
+            cache[canonical_id] = (time.monotonic(), merged)
+            return merged
+
+        if local_nuclide:
+            return local_nuclide
+        raise HTTPException(status_code=404, detail=f"Nuclide {identifier} not found in local DB nor IAEA")
     finally:
         client.close()
 

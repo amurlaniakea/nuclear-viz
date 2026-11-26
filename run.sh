@@ -8,4 +8,4 @@ if [ ! -d .venv ]; then
 fi
 
 ./.venv/bin/python -m pip install -e '.[dev]'
-exec ./.venv/bin/python -m uvicorn backend.main:app --host 0.0.0.0 --port "${PORT:-8000}" --reload
+exec ./.venv/bin/python -m uvicorn backend.main:app --host "${HOST:-127.0.0.1}" --port "${PORT:-8000}" --reload
