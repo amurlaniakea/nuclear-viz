@@ -36,6 +36,8 @@ En Debian/Ubuntu/WSL:
 
     bash run.sh
 
+Por defecto escucha solo en 127.0.0.1. Para exponerlo en la red local: `HOST=0.0.0.0 bash run.sh`.
+
 Luego abrir:
 
     http://localhost:8000

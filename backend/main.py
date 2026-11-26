@@ -24,6 +24,8 @@ import asyncio
 import json
 import re
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -52,6 +54,18 @@ Z_LOOKUP = {
 }
 
 
+def _app_version() -> str:
+    """Versión única: la de pyproject.toml (evita desincronización)."""
+    try:
+        return pkg_version("nuclear-viz")
+    except PackageNotFoundError:
+        return "0.0.0+local"
+
+
+# Identificador: Símbolo-A con sufijo opcional de isómero (p. ej. Pa-234m)
+NUCLIDE_RE = re.compile(r"^([A-Za-z]{1,2})-(\d{1,3})(m\d?)?$")
+
+
 def load_data() -> dict:
     return json.loads(DATA_FILE.read_text(encoding="utf-8"))
 
@@ -68,7 +82,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Nuclear Viz",
-    version="0.3.2",
+    version=_app_version(),
     description="Visualización educativa de cadenas de decaimiento nuclear.",
     lifespan=lifespan,
 )
@@ -76,7 +90,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
+    allow_methods=["GET"],
     allow_headers=["*"],
 )
 
@@ -119,22 +133,25 @@ async def get_nuclide(identifier: str, request: Request):
     Identifier format: Symbol-Mass (e.g., 'U-238', 'Pb-206')
     Tries local chains first. If not found or ?force_remote=true, queries NNDC.
     """
-    match = re.match(r"^([A-Za-z]+)-(\d+)$", identifier)
+    match = NUCLIDE_RE.match(identifier)
     if not match:
-        raise HTTPException(status_code=400, detail="Invalid identifier format. Use Symbol-A (e.g., U-238)")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid identifier format. Use Symbol-A (e.g., U-238, Pa-234m)",
+        )
 
-    symbol, mass_str = match.groups()
-    try:
-        a = int(mass_str)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Mass number must be integer")
+    raw_symbol, mass_str, isomer = match.groups()
+    # Los símbolos químicos son Capitalizados ("Pb"), no MAYÚSCULAS ("PB").
+    symbol = raw_symbol.capitalize()
+    a = int(mass_str)
+    canonical_id = f"{symbol}-{a}{isomer or ''}"
 
-    # 1. Check local data
+    # 1. Check local data (por id canónico: soporta isómeros como Pa-234m)
     data = app.state.data
     local_nuclide = None
     for chain in data.get("chains", []):
         for nuclide in chain.get("nuclides", []):
-            if nuclide["symbol"] == symbol.upper() and nuclide["a"] == a:
+            if nuclide.get("id") == canonical_id:
                 local_nuclide = nuclide.copy()
                 local_nuclide["source"] = "Local Educational Dataset"
                 break
@@ -149,7 +166,13 @@ async def get_nuclide(identifier: str, request: Request):
         return local_nuclide
 
     # Si no hay local O se fuerza remoto, ir a NNDC
-    z = Z_LOOKUP.get(symbol.upper())
+    if isomer:
+        # NNDC (endpoint de propiedades) no distingue isómeros: no inventamos datos.
+        raise HTTPException(
+            status_code=404,
+            detail=f"Isomer {canonical_id} is only available in the local dataset",
+        )
+    z = Z_LOOKUP.get(symbol)
     if not z:
         raise HTTPException(status_code=404, detail=f"Unknown element symbol '{symbol}' for remote lookup")
 
@@ -161,9 +184,9 @@ async def get_nuclide(identifier: str, request: Request):
         
         if nndc_data:
             merged = nndc_data.copy()
-            merged["id"] = f"{symbol.upper()}-{a}"
-            merged["name"] = f"{symbol.upper()}-{a}" 
-            merged["symbol"] = symbol.upper()
+            merged["id"] = canonical_id
+            merged["name"] = canonical_id
+            merged["symbol"] = symbol
             return merged
             
         else:

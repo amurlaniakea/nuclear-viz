@@ -21,9 +21,13 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
 from typing import Any
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 NNDC_BASE_URL = "https://www.nndc.bnl.gov/endb/rest/v1"
 
@@ -53,17 +57,17 @@ class NNDCClient:
             return self._normalize(raw_data, z, a)
             
         except httpx.HTTPStatusError as exc:
-            print(f"[NNDCClient] HTTP Error {exc.response.status_code} for {z}-{a}")
+            logger.warning(f"HTTP Error {exc.response.status_code} for {z}-{a}")
             return None
         except httpx.RequestError as exc:
-            print(f"[NNDCClient] Connection Error for {z}-{a}: {exc}")
+            logger.warning(f"Connection Error for {z}-{a}: {exc}")
             return None
         except json.JSONDecodeError as exc:
-            print(f"[NNDCClient] JSON Decode Error for {z}-{a}: {exc}")
+            logger.warning(f"JSON Decode Error for {z}-{a}: {exc}")
             return None
         except (KeyError, TypeError, ValueError) as exc:
             # Errores de estructura de datos inesperada
-            print(f"[NNDCClient] Data Structure Error for {z}-{a}: {exc}")
+            logger.warning(f"Data Structure Error for {z}-{a}: {exc}")
             return None
 
     def _normalize(self, raw: dict[str, Any], z: int, a: int) -> dict[str, Any]:
@@ -112,18 +116,19 @@ class NNDCClient:
 
     @staticmethod
     def _normalize_mode_name(name: str) -> str | None:
-        name_lower = name.lower()
-        if "alpha" in name_lower:
+        # Coincidencia por palabra completa: antes "ec" casaba dentro de "decay"/"spectrum".
+        n = name.lower()
+        if "alpha" in n:
             return "alpha"
-        if "beta-" in name_lower or "electron emission" in name_lower:
+        if "beta-" in n or "electron emission" in n:
             return "beta-"
-        if "beta+" in name_lower or "positron" in name_lower:
+        if "beta+" in n or "positron" in n:
             return "beta+"
-        if "electron capture" in name_lower or "ec" in name_lower:
+        if "electron capture" in n or re.search(r"\bec\b", n):
             return "ec"
-        if "gamma" in name_lower:
+        if "gamma" in n:
             return "gamma"
-        if "spontaneous fission" in name_lower or "sf" in name_lower:
+        if "spontaneous fission" in n or re.search(r"\bsf\b", n):
             return "sf"
         return None
 

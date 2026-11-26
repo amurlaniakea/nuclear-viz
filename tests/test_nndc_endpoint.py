@@ -106,3 +106,45 @@ def test_remote_fallback_on_missing_local(mock_nndc_cls, client):
     data = response.json()
     assert data["source"] == "NNDC"
     assert data["id"] == "C-14"
+
+
+# --- Regresiones de la auditoría (2026-11-26) ---
+
+@pytest.mark.parametrize("ident", ["Th-234", "Pb-206", "Ra-226", "Pb-214"])
+def test_two_letter_symbols_resolve_locally(client, ident):
+    """Antes: 'Pb' -> 'PB' no casaba con el dataset ni con Z_LOOKUP (404)."""
+    response = client.get(f"/api/nuclide/{ident}")
+    assert response.status_code == 200
+    assert response.json()["source"] == "Local Educational Dataset"
+
+
+def test_symbol_case_insensitive(client):
+    assert client.get("/api/nuclide/pb-206").json()["id"] == "Pb-206"
+
+
+def test_metastable_isomer_local(client):
+    response = client.get("/api/nuclide/Pa-234m")
+    assert response.status_code == 200
+    assert response.json()["id"] == "Pa-234m"
+
+
+def test_isomer_not_sent_to_remote(client):
+    response = client.get("/api/nuclide/Tc-99m")
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("Isomeric transition decay", None),
+        ("Spectrum", None),
+        ("EC", "ec"),
+        ("Electron capture", "ec"),
+        ("SF", "sf"),
+        ("Alpha decay", "alpha"),
+    ],
+)
+def test_mode_name_no_substring_false_positives(name, expected):
+    from backend.parsers.nndc import NNDCClient
+
+    assert NNDCClient._normalize_mode_name(name) == expected
