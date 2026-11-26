@@ -28,10 +28,18 @@ const ENDPOINTS = {
   }
 }[MODE];
 
+const searchForm = document.getElementById('nuclide-search');
+const searchInput = document.getElementById('nuclide-query');
+const searchResultEl = document.getElementById('search-result');
+let searchSeq = 0;
+
 let currentChain = null;
 let selectedNuclideId = null;
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  initSearch();
+  init();
+});
 
 async function init() {
   try {
@@ -424,7 +432,7 @@ function renderDetail(nuclideId) {
     ? outgoing
         .map((edge) => {
           return `<li>${escapeHtml(edge.to)} <span class="pill">${escapeHtml(edge.mode)}</span>${
-            edge.branch ? ` (${edge.branch}%)` : ''
+            edge.branch ? ` (${escapeHtml(String(edge.branch))}%)` : ''
           }</li>`;
         })
         .join('')
@@ -434,7 +442,7 @@ function renderDetail(nuclideId) {
     ? incoming
         .map((edge) => {
           return `<li>${escapeHtml(edge.from)} <span class="pill">${escapeHtml(edge.mode)}</span>${
-            edge.branch ? ` (${edge.branch}%)` : ''
+            edge.branch ? ` (${escapeHtml(String(edge.branch))}%)` : ''
           }</li>`;
         })
         .join('')
@@ -463,5 +471,83 @@ function renderDetail(nuclideId) {
 
     <div class="detail-label">Nota</div>
     <div>${escapeHtml(ENDPOINTS.note)}</div>
+  `;
+}
+
+// ---------- Búsqueda de núclidos (solo modo API: usa /api/nuclide/{Símbolo-A}) ----------
+
+function initSearch() {
+  // En la demo estática el formulario no existe: no hay nada que activar.
+  if (!searchForm || MODE !== 'api' || !window.NuclideSearch) return;
+  searchForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    runSearch(searchInput.value);
+  });
+}
+
+async function runSearch(text) {
+  const id = window.NuclideSearch.parseNuclideQuery(text);
+  if (!id) {
+    showSearchMessage(window.NuclideSearch.errorMessage(400, text), true);
+    return;
+  }
+
+  const seq = ++searchSeq; // descarta respuestas antiguas si se lanza otra búsqueda
+  const button = searchForm.querySelector('button');
+  button.disabled = true;
+  showSearchMessage(`Buscando ${id}…`, false);
+
+  try {
+    const res = await fetch(`/api/nuclide/${encodeURIComponent(id)}`);
+    if (seq !== searchSeq) return;
+    if (!res.ok) {
+      showSearchMessage(window.NuclideSearch.errorMessage(res.status, id), true);
+      return;
+    }
+    renderSearchResult(await res.json());
+  } catch (error) {
+    if (seq === searchSeq) showSearchMessage('No se pudo contactar con el servidor.', true);
+  } finally {
+    if (seq === searchSeq) button.disabled = false;
+  }
+}
+
+function showSearchMessage(message, isError) {
+  searchResultEl.hidden = false;
+  searchResultEl.innerHTML = `<p class="${isError ? 'search-error' : 'search-info'}">${escapeHtml(message)}</p>`;
+}
+
+function renderSearchResult(nuclide) {
+  const z = Number(nuclide.z);
+  const a = Number(nuclide.a);
+  const n = Number.isFinite(Number(nuclide.n)) ? Number(nuclide.n) : a - z;
+
+  const modes = nuclide.stable
+    ? '<span class="pill">estable</span>'
+    : (nuclide.decay_modes || [])
+        .map((mode) => `<span class="pill">${escapeHtml(mode)}</span>`)
+        .join('') || '<span class="pill">-</span>';
+
+  // Si el núclido pertenece a la cadena que se está viendo, se resalta en el gráfico.
+  const inChain = (currentChain?.nuclides || []).some((item) => item.id === nuclide.id);
+  if (inChain) {
+    selectedNuclideId = nuclide.id;
+    renderChart();
+    renderTable();
+    renderDetail(nuclide.id);
+  }
+
+  searchResultEl.hidden = false;
+  searchResultEl.innerHTML = `
+    <h2>${escapeHtml(nuclide.name || nuclide.id)}</h2>
+    <div class="detail-label">Z / N / A</div>
+    <div>${z} / ${n} / ${a}</div>
+    <div class="detail-label">Vida media</div>
+    <div>${escapeHtml(nuclide.half_life || '-')}</div>
+    <div class="detail-label">Modos de decaimiento</div>
+    <div>${modes}</div>
+    <div class="detail-label">Fuente</div>
+    <div>${escapeHtml(nuclide.source || '-')}</div>
+    ${inChain ? '<p class="search-info">También está en la cadena actual: se ha seleccionado en el gráfico.</p>' : ''}
   `;
 }

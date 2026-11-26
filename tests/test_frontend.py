@@ -76,3 +76,17 @@ def test_header_has_motto_first_and_yellow_icon(index):
 def test_logo_icon_is_yellow():
     css = (ROOT / "site/assets/style.css").read_text(encoding="utf-8")
     assert ".logo-icon" in css and "#facc15" in css
+
+
+def test_search_form_only_in_api_mode():
+    api = (ROOT / "backend/static/index.html").read_text(encoding="utf-8")
+    static = (ROOT / "site/index.html").read_text(encoding="utf-8")
+    assert 'id="nuclide-search"' in api and "/static/nuclide-search.js" in api
+    assert api.index("nuclide-search.js") < api.index("/static/app.js")
+    assert 'id="nuclide-search"' not in static
+
+
+def test_search_assets_served_and_wired(client):
+    assert client.get("/static/nuclide-search.js").status_code == 200
+    js = client.get("/static/app.js").text
+    assert "/api/nuclide/" in js and "initSearch" in js
