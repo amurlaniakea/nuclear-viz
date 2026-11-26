@@ -254,7 +254,8 @@ svg text {
   min-width: min(260px, 100%);
 }
 
-.search button {
+.search button,
+.controls button {
   background: #1e293b;
   color: #e2e8f0;
   border: 1px solid #334155;
@@ -263,11 +264,13 @@ svg text {
   cursor: pointer;
 }
 
-.search button:hover:not(:disabled) {
+.search button:hover:not(:disabled),
+.controls button:hover:not(:disabled) {
   background: #334155;
 }
 
-.search button:disabled {
+.search button:disabled,
+.controls button:disabled {
   opacity: 0.6;
   cursor: wait;
 }
@@ -300,4 +303,22 @@ svg text {
 .search-info {
   color: #94a3b8;
   margin-top: 10px;
+}
+
+/* --- Exportar gráfico --- */
+.export-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.controls .hint {
+  color: #fca5a5;
+  font-size: 0.85rem;
+}
+
+header a {
+  color: #38bdf8;
 }
