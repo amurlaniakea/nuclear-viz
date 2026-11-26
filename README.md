@@ -62,7 +62,7 @@ No usar para protección radiológica ni cálculos de seguridad.
 - [ ] Parser/ingesta ENSDF.
 - [ ] Consulta EXFOR.
 - [ ] Diagramas de niveles gamma.
-- [ ] Búsqueda global de núclidos.
+- [x] Búsqueda de núclidos (modo servidor: `Pb-214`, `214Pb`, `Pa-234m`).
 - [ ] Exportar SVG/PNG.
 
 ## 📧 Contacto

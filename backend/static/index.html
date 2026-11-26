@@ -28,6 +28,14 @@
       </div>
     </section>
 
+    <form id="nuclide-search" class="search" role="search" autocomplete="off">
+      <label for="nuclide-query">Buscar núclido:</label>
+      <input id="nuclide-query" type="text" placeholder="Pb-214, 214Pb, Pa-234m" maxlength="12" spellcheck="false" />
+      <button type="submit">Buscar</button>
+      <small class="hint">Fuera del dataset local se consulta IAEA Livechart (ENSDF).</small>
+    </form>
+    <section id="search-result" class="search-result" aria-live="polite" hidden></section>
+
     <section class="layout">
       <div id="chart" aria-label="Carta de núclidos de la cadena seleccionada"></div>
       <aside id="detail">Cargando...</aside>
@@ -52,6 +60,7 @@
     </section>
   </main>
 
+  <script src="/static/nuclide-search.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
