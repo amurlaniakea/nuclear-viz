@@ -13,7 +13,7 @@
     <div class="motto">«Tecnósfera al servicio de la Biósfera.» — «La Paz Es El Camino.»</div>
     <h1><span class="logo-icon" aria-hidden="true">☢</span> Nuclear Viz</h1>
     <p>Visualización educativa de cadenas de decaimiento nuclear</p>
-    <p style="font-size:0.8em; color:#64748b;">Demo estática • Datos locales simplificados</p>
+    <p style="font-size:0.8em; color:#64748b;">Demo estática • Datos locales simplificados • La búsqueda de núclidos (IAEA Livechart) requiere el servidor local: <a href="https://github.com/amurlaniakea/nuclear-viz#readme">instrucciones</a></p>
   </header>
 
   <main>
@@ -27,6 +27,12 @@
         <span class="legend-item"><span class="swatch beta-plus"></span>β+/EC</span>
         <span class="legend-item"><span class="swatch stable"></span>estable</span>
       </div>
+
+      <span class="export-buttons">
+        <button id="export-svg" type="button" title="Descargar el gráfico como SVG vectorial">Exportar SVG</button>
+        <button id="export-png" type="button" title="Descargar el gráfico como imagen PNG">Exportar PNG</button>
+        <span id="export-status" class="hint" aria-live="polite"></span>
+      </span>
     </section>
 
     <section class="layout">
@@ -53,6 +59,7 @@
     </section>
   </main>
 
+  <script src="./export.js"></script>
   <script src="./app.js"></script>
 </body>
 </html>

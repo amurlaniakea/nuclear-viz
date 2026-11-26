@@ -90,3 +90,23 @@ def test_search_assets_served_and_wired(client):
     assert client.get("/static/nuclide-search.js").status_code == 200
     js = client.get("/static/app.js").text
     assert "/api/nuclide/" in js and "initSearch" in js
+
+
+@pytest.mark.parametrize(
+    "index,script",
+    [("backend/static/index.html", "/static/export.js"), ("site/index.html", "./export.js")],
+)
+def test_export_buttons_and_script_in_both_modes(index, script):
+    html = (ROOT / index).read_text(encoding="utf-8")
+    assert 'id="export-svg"' in html and 'id="export-png"' in html
+    assert html.index(script) < html.index("app.js")
+
+
+def test_export_assets_served_and_wired(client):
+    assert client.get("/static/export.js").status_code == 200
+    assert "initExport" in client.get("/static/app.js").text
+
+
+def test_static_demo_explains_search_needs_server():
+    html = (ROOT / "site/index.html").read_text(encoding="utf-8")
+    assert "requiere el servidor local" in html

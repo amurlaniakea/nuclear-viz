@@ -63,7 +63,7 @@ No usar para protección radiológica ni cálculos de seguridad.
 - [ ] Consulta EXFOR.
 - [ ] Diagramas de niveles gamma.
 - [x] Búsqueda de núclidos (modo servidor: `Pb-214`, `214Pb`, `Pa-234m`).
-- [ ] Exportar SVG/PNG.
+- [x] Exportar SVG/PNG (botones sobre el gráfico; también en la demo estática).
 
 ## 📧 Contacto
 

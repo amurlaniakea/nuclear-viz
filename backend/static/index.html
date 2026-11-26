@@ -26,6 +26,12 @@
         <span class="legend-item"><span class="swatch beta-plus"></span>β+/EC</span>
         <span class="legend-item"><span class="swatch stable"></span>estable</span>
       </div>
+
+      <span class="export-buttons">
+        <button id="export-svg" type="button" title="Descargar el gráfico como SVG vectorial">Exportar SVG</button>
+        <button id="export-png" type="button" title="Descargar el gráfico como imagen PNG">Exportar PNG</button>
+        <span id="export-status" class="hint" aria-live="polite"></span>
+      </span>
     </section>
 
     <form id="nuclide-search" class="search" role="search" autocomplete="off">
@@ -61,6 +67,7 @@
   </main>
 
   <script src="/static/nuclide-search.js"></script>
+  <script src="/static/export.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

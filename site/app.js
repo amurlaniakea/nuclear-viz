@@ -38,6 +38,7 @@ let selectedNuclideId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   initSearch();
+  initExport();
   init();
 });
 
@@ -550,4 +551,72 @@ function renderSearchResult(nuclide) {
     <div>${escapeHtml(nuclide.source || '-')}</div>
     ${inChain ? '<p class="search-info">También está en la cadena actual: se ha seleccionado en el gráfico.</p>' : ''}
   `;
+}
+
+// ---------- Exportar el gráfico (SVG / PNG): funciona en modo API y en la demo estática ----------
+
+function initExport() {
+  const svgButton = document.getElementById('export-svg');
+  const pngButton = document.getElementById('export-png');
+  if (!svgButton || !pngButton || !window.NuclideExport) return;
+  svgButton.addEventListener('click', () => exportChart('svg'));
+  pngButton.addEventListener('click', () => exportChart('png'));
+}
+
+function setExportStatus(message) {
+  const status = document.getElementById('export-status');
+  if (status) status.textContent = message;
+}
+
+async function exportChart(kind) {
+  const svg = chartEl.querySelector('svg');
+  if (!svg || !currentChain) {
+    setExportStatus('No hay gráfico que exportar todavía.');
+    return;
+  }
+  setExportStatus('');
+  try {
+    const { markup, width, height } = window.NuclideExport.serializeChart(svg, {
+      title: currentChain.name
+    });
+    const name = window.NuclideExport.exportFileName(currentChain.id || selectEl.value, kind);
+    if (kind === 'svg') {
+      downloadBlob(new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }), name);
+    } else {
+      downloadBlob(await svgToPngBlob(markup, width, height), name);
+    }
+  } catch (error) {
+    setExportStatus(
+      kind === 'png'
+        ? 'No se pudo generar el PNG en este navegador. Prueba con SVG.'
+        : 'No se pudo exportar el gráfico.'
+    );
+  }
+}
+
+function svgToPngBlob(markup, width, height) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('toBlob'))), 'image/png');
+    };
+    img.onerror = () => reject(new Error('No se pudo rasterizar el SVG'));
+    // data: URL (no blob:) para que el canvas no quede "contaminado" y permita toBlob.
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(markup);
+  });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
