@@ -18,7 +18,7 @@
 # License along with this program. If not, see
 # <https://www.gnu.org/licenses/>.
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -55,57 +55,77 @@ def test_unknown_element_symbol(client):
     assert response.status_code == 404
 
 
-@patch("backend.main.NNDCClient")
-def test_force_remote_mocked(mock_nndc_cls, client):
-    """Test forcing remote query with mocked successful response."""
-    mock_instance = MagicMock()
-    mock_nndc_cls.return_value = mock_instance
-    
-    # Mock return value simulating NNDC structure normalized
-    mock_instance.get_nuclide_properties.return_value = {
-        "z": 92,
-        "a": 238,
-        "n": 146,
-        "source": "NNDC",
-        "stable": False,
-        "half_life": "4.468e9 y",
-        "decay_modes": ["alpha"],
-        "raw_ref": "..."
-    }
+@pytest.fixture(autouse=True)
+def _clear_remote_cache(client):
+    client.app.state.remote_cache.clear()
+    yield
 
+
+def _remote(**over):
+    base = {
+        "z": 92, "a": 238, "n": 146, "source": "IAEA Livechart (ENSDF)", "stable": False,
+        "half_life": "4.468e9 y", "half_life_seconds": None, "decay_modes": ["alpha"],
+        "raw_ref": "...",
+    }
+    base.update(over)
+    return base
+
+
+@patch("backend.main.IAEAClient")
+def test_force_remote_mocked(mock_cls, client):
+    mock_cls.return_value.get_nuclide_properties.return_value = _remote()
     response = client.get("/api/nuclide/U-238?force_remote=true")
     assert response.status_code == 200
-    data = response.json()
-    assert data["source"] == "NNDC"
-    assert data["half_life"] == "4.468e9 y"
-    
-    # Verify call happened
-    mock_instance.get_nuclide_properties.assert_called_once_with(92, 238)
+    assert response.json()["source"] == "IAEA Livechart (ENSDF)"
+    mock_cls.return_value.get_nuclide_properties.assert_called_once_with("U", 238)
 
 
-@patch("backend.main.NNDCClient")
-def test_remote_fallback_on_missing_local(mock_nndc_cls, client):
-    """If not in local, should try remote automatically."""
-    mock_instance = MagicMock()
-    mock_nndc_cls.return_value = mock_instance
-    
-    # Assume C-14 is NOT in our small local chains
-    mock_instance.get_nuclide_properties.return_value = {
-        "z": 6,
-        "a": 14,
-        "n": 8,
-        "source": "NNDC",
-        "stable": False,
-        "half_life": "5730 y",
-        "decay_modes": ["beta-"],
-        "raw_ref": "..."
-    }
-
+@patch("backend.main.IAEAClient")
+def test_remote_when_missing_local(mock_cls, client):
+    mock_cls.return_value.get_nuclide_properties.return_value = _remote(
+        z=6, a=14, n=8, half_life="5700 y", decay_modes=["beta-"]
+    )
     response = client.get("/api/nuclide/C-14")
     assert response.status_code == 200
-    data = response.json()
-    assert data["source"] == "NNDC"
-    assert data["id"] == "C-14"
+    assert response.json()["id"] == "C-14"
+
+
+@patch("backend.main.IAEAClient")
+def test_remote_result_is_cached(mock_cls, client):
+    mock_cls.return_value.get_nuclide_properties.return_value = _remote(z=6, a=14, n=8)
+    client.get("/api/nuclide/C-14")
+    client.get("/api/nuclide/C-14")
+    assert mock_cls.return_value.get_nuclide_properties.call_count == 1
+
+
+@patch("backend.main.IAEAClient")
+def test_remote_not_found_is_404(mock_cls, client):
+    mock_cls.return_value.get_nuclide_properties.return_value = None
+    assert client.get("/api/nuclide/C-99").status_code == 404
+
+
+@patch("backend.main.IAEAClient")
+def test_remote_unavailable_is_502(mock_cls, client):
+    from backend.parsers.iaea import IAEAUnavailable
+
+    mock_cls.return_value.get_nuclide_properties.side_effect = IAEAUnavailable("boom")
+    assert client.get("/api/nuclide/C-14").status_code == 502
+
+
+@patch("backend.main.IAEAClient")
+def test_remote_unavailable_falls_back_to_local(mock_cls, client):
+    from backend.parsers.iaea import IAEAUnavailable
+
+    mock_cls.return_value.get_nuclide_properties.side_effect = IAEAUnavailable("boom")
+    response = client.get("/api/nuclide/U-238?force_remote=true")
+    assert response.status_code == 200
+    assert response.json()["source"] == "Local Educational Dataset"
+
+
+def test_heavy_element_symbol_accepted(client):
+    with patch("backend.main.IAEAClient") as mock_cls:
+        mock_cls.return_value.get_nuclide_properties.return_value = _remote(z=95, a=241, n=146)
+        assert client.get("/api/nuclide/Am-241").status_code == 200
 
 
 # --- Regresiones de la auditoría (2026-11-26) ---
@@ -133,18 +153,3 @@ def test_isomer_not_sent_to_remote(client):
     assert response.status_code == 404
 
 
-@pytest.mark.parametrize(
-    "name,expected",
-    [
-        ("Isomeric transition decay", None),
-        ("Spectrum", None),
-        ("EC", "ec"),
-        ("Electron capture", "ec"),
-        ("SF", "sf"),
-        ("Alpha decay", "alpha"),
-    ],
-)
-def test_mode_name_no_substring_false_positives(name, expected):
-    from backend.parsers.nndc import NNDCClient
-
-    assert NNDCClient._normalize_mode_name(name) == expected
