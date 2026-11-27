@@ -115,3 +115,16 @@ def test_half_life_exponent_lowercase():
     r = IAEAClient._normalize(row, 92, 146)
     assert r["half_life"] == "4.468e9 y"
     assert r["decay_modes"] == ["alpha", "sf"]
+
+
+def test_code_zero_means_no_data():
+    """Documentado por IAEA: '0' = petición válida sin datos (núclido inexistente)."""
+    assert IAEAClient.parse_csv("0\n", 99) is None
+    assert _client(lambda req: httpx.Response(200, text="0")).get_nuclide_properties("C", 99) is None
+
+
+@pytest.mark.parametrize("code", ["1", "2", "3", "5", "6"])
+def test_other_numeric_codes_are_unavailable(code):
+    """Códigos 1-6 son errores de petición/desconocidos: no deben confundirse con 'no existe'."""
+    with pytest.raises(IAEAUnavailable):
+        _client(lambda req: httpx.Response(200, text=code)).get_nuclide_properties("Pb", 206)

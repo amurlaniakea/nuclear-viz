@@ -88,6 +88,13 @@ class IAEAClient:
 
     @classmethod
     def parse_csv(cls, text: str, a: int) -> dict[str, Any] | None:
+        # Sin datos, Livechart devuelve un código numérico en lugar de CSV (api_v0_guide):
+        # 0 = petición válida pero sin datos; 1-6 = error de petición o desconocido.
+        body = text.strip()
+        if re.fullmatch(r"\d", body):
+            if body == "0":
+                return None
+            raise ValueError(f"código de error de IAEA: {body}")
         for row in csv.DictReader(io.StringIO(text)):
             z, n = int(row["z"]), int(row["n"])
             if z + n != a or (row.get("energy") or "0").strip() not in ("0", "0.0"):
