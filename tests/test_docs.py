@@ -47,7 +47,12 @@ def test_readme_images_exist():
 
 def test_example_svgs_are_valid_exports():
     files = sorted((ROOT / "docs" / "ejemplos").glob("nuclear-viz-*.svg"))
-    assert len(files) == 3
+    assert {f.name for f in files} == {
+        "nuclear-viz-th232.svg",
+        "nuclear-viz-u235.svg",
+        "nuclear-viz-u238.svg",
+        "nuclear-viz-ni-60-niveles.svg",
+    }
     for f in files:
         root = ET.parse(f).getroot()
         assert root.tag == "{http://www.w3.org/2000/svg}svg"

@@ -255,7 +255,9 @@ svg text {
 }
 
 .search button,
-.controls button {
+.controls button,
+.search-result button,
+.levels-panel button {
   background: #1e293b;
   color: #e2e8f0;
   border: 1px solid #334155;
@@ -265,7 +267,9 @@ svg text {
 }
 
 .search button:hover:not(:disabled),
-.controls button:hover:not(:disabled) {
+.controls button:hover:not(:disabled),
+.search-result button:hover:not(:disabled),
+.levels-panel button:hover:not(:disabled) {
   background: #334155;
 }
 
@@ -321,4 +325,40 @@ svg text {
 
 header a {
   color: #38bdf8;
+}
+
+/* --- Esquema de niveles --- */
+.levels-panel {
+  padding: 16px;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  background: #0f172a;
+}
+
+.levels-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.levels-head h2 {
+  margin: 0;
+  margin-right: auto;
+  font-size: 1.25rem;
+}
+
+.levels-head select {
+  background: #020617;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.levels-panel svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-top: 8px;
 }

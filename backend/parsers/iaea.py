@@ -51,6 +51,19 @@ _MODE_MAP = {
 }
 
 
+def _numeric_code(text: str) -> str | None:
+    """Livechart responde con un único dígito (código) cuando no hay CSV: 0 = sin datos."""
+    body = text.strip()
+    return body if re.fullmatch(r"\d", body) else None
+
+
+def _to_float(value: str | None) -> float | None:
+    try:
+        return float(value) if (value or "").strip() else None
+    except ValueError:
+        return None
+
+
 class IAEAUnavailable(Exception):
     """El servicio remoto no respondió o devolvió algo inutilizable (≠ núclido inexistente)."""
 
@@ -65,25 +78,43 @@ class IAEAClient:
     def __init__(self, timeout: float = 10.0, transport: httpx.BaseTransport | None = None):
         self.client = httpx.Client(timeout=timeout, transport=transport)
 
-    def get_nuclide_properties(self, symbol: str, a: int) -> dict[str, Any] | None:
-        """None = el núclido no existe en IAEA. IAEAUnavailable = fallo de red/formato."""
-        params = {"fields": "ground_states", "nuclides": f"{a}{symbol.lower()}"}
+    def _fetch(self, fields: str, symbol: str, a: int) -> str | None:
+        """Descarga un grupo de campos de Livechart. None = 400/404 (no existe)."""
+        params = {"fields": fields, "nuclides": f"{a}{symbol.lower()}"}
         try:
             response = self.client.get(IAEA_URL, params=params)
         except httpx.RequestError as exc:
-            logger.warning("IAEA connection error for %s-%s: %s", symbol, a, exc)
+            logger.warning("IAEA connection error for %s-%s (%s): %s", symbol, a, fields, exc)
             raise IAEAUnavailable(str(exc)) from exc
 
         if response.status_code in (400, 404):
             return None
         if response.status_code != 200:
-            logger.warning("IAEA HTTP %s for %s-%s", response.status_code, symbol, a)
+            logger.warning("IAEA HTTP %s for %s-%s (%s)", response.status_code, symbol, a, fields)
             raise IAEAUnavailable(f"HTTP {response.status_code}")
+        return response.text
 
+    def get_nuclide_properties(self, symbol: str, a: int) -> dict[str, Any] | None:
+        """None = el núclido no existe en IAEA. IAEAUnavailable = fallo de red/formato."""
+        text = self._fetch("ground_states", symbol, a)
+        if text is None:
+            return None
         try:
-            return self.parse_csv(response.text, a)
+            return self.parse_csv(text, a)
         except (KeyError, ValueError) as exc:
             logger.warning("IAEA unexpected CSV for %s-%s: %s", symbol, a, exc)
+            raise IAEAUnavailable("unexpected CSV format") from exc
+
+    def get_levels(self, symbol: str, a: int, max_levels: int = 40) -> dict[str, Any] | None:
+        """Niveles y transiciones gamma de un núclido. None = sin datos de niveles."""
+        levels_text = self._fetch("levels", symbol, a)
+        if levels_text is None:
+            return None
+        gammas_text = self._fetch("gammas", symbol, a)
+        try:
+            return self.parse_levels(levels_text, gammas_text or "0", a, max_levels)
+        except (KeyError, ValueError) as exc:
+            logger.warning("IAEA unexpected levels CSV for %s-%s: %s", symbol, a, exc)
             raise IAEAUnavailable("unexpected CSV format") from exc
 
     @classmethod
@@ -105,23 +136,9 @@ class IAEAClient:
     @classmethod
     def _normalize(cls, row: dict[str, str], z: int, n: int) -> dict[str, Any]:
         a = z + n
-        raw_hl = (row.get("half_life") or "").strip()
-        # Livechart devuelve "4.468E9": se muestra como "4.468e9".
-        raw_hl = re.sub(r"(?<=\d)E(?=[+-]?\d)", "e", raw_hl)
-        unit = (row.get("unit_hl") or "").strip()
-        stable = raw_hl.upper() == "STABLE"
+        stable, half_life = cls._format_half_life(row.get("half_life"), row.get("unit_hl"))
 
-        if stable:
-            half_life: str | None = "estable"
-        elif raw_hl:
-            half_life = f"{raw_hl} {_UNIT_MAP.get(unit.lower(), unit)}".strip()
-        else:
-            half_life = None
-
-        try:
-            seconds = float(row["half_life_sec"]) if (row.get("half_life_sec") or "").strip() else None
-        except ValueError:
-            seconds = None
+        seconds = _to_float(row.get("half_life_sec"))
 
         modes: list[str] = []
         for key in ("decay_1", "decay_2", "decay_3"):
@@ -138,6 +155,100 @@ class IAEAClient:
             "half_life": half_life,
             "half_life_seconds": seconds,
             "decay_modes": modes,
+            "raw_ref": IAEA_CHART_URL,
+        }
+
+    @staticmethod
+    def _format_half_life(raw: str | None, unit: str | None) -> tuple[bool, str | None]:
+        """(es_estable, etiqueta). Livechart devuelve '4.468E9' -> se muestra '4.468e9'."""
+        raw_hl = re.sub(r"(?<=\d)E(?=[+-]?\d)", "e", (raw or "").strip())
+        unit = (unit or "").strip()
+        if raw_hl.upper() == "STABLE":
+            return True, "estable"
+        if raw_hl:
+            return False, f"{raw_hl} {_UNIT_MAP.get(unit.lower(), unit)}".strip()
+        return False, None
+
+    @classmethod
+    def parse_levels(
+        cls, levels_text: str, gammas_text: str, a: int, max_levels: int = 40
+    ) -> dict[str, Any] | None:
+        """
+        Niveles (fields=levels) y transiciones (fields=gammas) de un núclido.
+        Se conservan los `max_levels` de menor energía y solo las transiciones entre ellos.
+        Niveles con energía desconocida (shift X, Y...) se omiten y se cuentan aparte.
+        """
+        code = _numeric_code(levels_text)
+        if code is not None:
+            if code == "0":
+                return None
+            raise ValueError(f"código de error de IAEA: {code}")
+
+        levels: list[dict[str, Any]] = []
+        shifted = 0
+        z = n = 0
+        for row in csv.DictReader(io.StringIO(levels_text)):
+            rz, rn = int(row["z"]), int(row["n"])
+            if rz + rn != a:
+                continue
+            if (row.get("energy_shift") or "").strip():
+                shifted += 1
+                continue
+            energy = (row.get("energy") or "").strip()
+            if not energy:
+                continue
+            z, n = rz, rn
+            _, half_life = cls._format_half_life(row.get("half_life"), row.get("unit_hl"))
+            levels.append(
+                {
+                    "idx": int(row["idx"]),
+                    "energy": float(energy),
+                    "jp": (row.get("jp") or "").strip(),
+                    "half_life": half_life,
+                    "half_life_seconds": _to_float(row.get("half_life_sec")),
+                }
+            )
+        if not levels:
+            return None
+
+        levels.sort(key=lambda lv: (lv["energy"], lv["idx"]))
+        total = len(levels)
+        kept = levels[:max_levels]
+        kept_idx = {lv["idx"] for lv in kept}
+
+        gammas: list[dict[str, Any]] = []
+        gcode = _numeric_code(gammas_text)
+        if gcode is not None and gcode != "0":
+            raise ValueError(f"código de error de IAEA: {gcode}")
+        if gcode is None:
+            for row in csv.DictReader(io.StringIO(gammas_text)):
+                if int(row["z"]) + int(row["n"]) != a:
+                    continue
+                start, end = int(row["start_level_idx"]), int(row["end_level_idx"])
+                energy = (row.get("energy") or "").strip()
+                if start not in kept_idx or end not in kept_idx or not energy:
+                    continue
+                gammas.append(
+                    {
+                        "start": start,
+                        "end": end,
+                        "energy": float(energy),
+                        "intensity": _to_float(row.get("relative_intensity")),
+                        "multipolarity": (row.get("multipolarity") or "").strip(),
+                    }
+                )
+
+        return {
+            "z": z,
+            "n": n,
+            "a": a,
+            "source": IAEA_SOURCE,
+            "levels": kept,
+            "gammas": gammas,
+            "total_levels": total,
+            "shown_levels": len(kept),
+            "truncated": total > len(kept),
+            "omitted_shifted": shifted,
             "raw_ref": IAEA_CHART_URL,
         }
 

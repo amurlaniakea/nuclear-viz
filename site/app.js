@@ -31,6 +31,8 @@ const ENDPOINTS = {
 const searchForm = document.getElementById('nuclide-search');
 const searchInput = document.getElementById('nuclide-query');
 const searchResultEl = document.getElementById('search-result');
+const levelsPanelEl = document.getElementById('levels-panel');
+let levelsSeq = 0;
 let searchSeq = 0;
 
 let currentChain = null;
@@ -530,6 +532,7 @@ function renderSearchResult(nuclide) {
         .join('') || '<span class="pill">-</span>';
 
   // Si el núclido pertenece a la cadena que se está viendo, se resalta en el gráfico.
+  const isIsomer = /\d(m\d?)$/i.test(String(nuclide.id || ''));
   const inChain = (currentChain?.nuclides || []).some((item) => item.id === nuclide.id);
   if (inChain) {
     selectedNuclideId = nuclide.id;
@@ -550,7 +553,10 @@ function renderSearchResult(nuclide) {
     <div class="detail-label">Fuente</div>
     <div>${escapeHtml(nuclide.source || '-')}</div>
     ${inChain ? '<p class="search-info">También está en la cadena actual: se ha seleccionado en el gráfico.</p>' : ''}
+    ${isIsomer ? '' : '<p><button type="button" id="levels-button">Ver esquema de niveles</button></p>'}
   `;
+  const levelsButton = searchResultEl.querySelector('#levels-button');
+  if (levelsButton) levelsButton.addEventListener('click', () => loadLevels(nuclide.id, 20));
 }
 
 // ---------- Exportar el gráfico (SVG / PNG): funciona en modo API y en la demo estática ----------
@@ -619,4 +625,67 @@ function downloadBlob(blob, filename) {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ---------- Esquema de niveles (solo modo API: /api/nuclide/{id}/levels) ----------
+
+async function loadLevels(id, maxLevels) {
+  if (!levelsPanelEl || !window.NuclideLevels) return;
+  const seq = ++levelsSeq;
+  levelsPanelEl.hidden = false;
+  levelsPanelEl.innerHTML = `<p class="search-info">Cargando niveles de ${escapeHtml(id)}…</p>`;
+  try {
+    const res = await fetch(`/api/nuclide/${encodeURIComponent(id)}/levels?max_levels=${maxLevels}`);
+    if (seq !== levelsSeq) return;
+    if (!res.ok) {
+      const message = res.status === 404
+        ? `IAEA no tiene datos de niveles para ${id}.`
+        : res.status === 502
+          ? 'El servicio remoto de IAEA no está disponible ahora mismo. Inténtalo más tarde.'
+          : `Error inesperado del servidor (HTTP ${res.status}).`;
+      levelsPanelEl.innerHTML = `<p class="search-error">${escapeHtml(message)}</p>`;
+      return;
+    }
+    renderLevelsPanel(await res.json(), maxLevels);
+  } catch (error) {
+    if (seq === levelsSeq) {
+      levelsPanelEl.innerHTML = '<p class="search-error">No se pudo contactar con el servidor.</p>';
+    }
+  }
+}
+
+function renderLevelsPanel(data, maxLevels) {
+  const omitted = Number(data.omitted_shifted) || 0;
+  const options = [10, 20, 40, 80]
+    .map((v) => `<option value="${v}"${v === maxLevels ? ' selected' : ''}>${v}</option>`)
+    .join('');
+  levelsPanelEl.hidden = false;
+  levelsPanelEl.innerHTML = `
+    <div class="levels-head">
+      <h2>Esquema de niveles: ${escapeHtml(data.name || data.id)}</h2>
+      <label>Niveles <select id="levels-max">${options}</select></label>
+      <button type="button" id="levels-export">Exportar SVG</button>
+    </div>
+    <p class="search-info">
+      Mostrando ${Number(data.shown_levels)} de ${Number(data.total_levels)} niveles (los de menor energía)${omitted ? ` · ${omitted} omitidos por energía no determinada` : ''}.
+      Son niveles del propio núclido: las transiciones de un decaimiento (p. ej. Co-60 → Ni-60) se ven en el núclido hijo.
+    </p>
+    <div id="levels-svg"></div>
+  `;
+  const svg = window.NuclideLevels.renderLevelScheme(data, document);
+  levelsPanelEl.querySelector('#levels-svg').appendChild(svg);
+  levelsPanelEl.querySelector('#levels-max').addEventListener('change', (event) => {
+    loadLevels(data.id, Number(event.target.value));
+  });
+  levelsPanelEl.querySelector('#levels-export').addEventListener('click', () => {
+    try {
+      const { markup } = window.NuclideExport.serializeChart(svg, { title: `${data.name || data.id} · niveles` });
+      downloadBlob(
+        new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }),
+        window.NuclideExport.exportFileName(`${data.id}-niveles`, 'svg')
+      );
+    } catch (error) {
+      levelsPanelEl.querySelector('.search-info').textContent = 'No se pudo exportar el esquema.';
+    }
+  });
 }
