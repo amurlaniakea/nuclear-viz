@@ -110,3 +110,17 @@ def test_export_assets_served_and_wired(client):
 def test_static_demo_explains_search_needs_server():
     html = (ROOT / "site/index.html").read_text(encoding="utf-8")
     assert "requiere el servidor local" in html
+
+
+def test_levels_panel_only_in_api_mode():
+    api = (ROOT / "backend/static/index.html").read_text(encoding="utf-8")
+    static = (ROOT / "site/index.html").read_text(encoding="utf-8")
+    assert 'id="levels-panel"' in api and "/static/levels.js" in api
+    assert api.index("levels.js") < api.index("/static/app.js")
+    assert 'id="levels-panel"' not in static and "levels.js" not in static
+
+
+def test_levels_assets_served_and_wired(client):
+    assert client.get("/static/levels.js").status_code == 200
+    js = client.get("/static/app.js").text
+    assert "loadLevels" in js and "/levels?max_levels=" in js

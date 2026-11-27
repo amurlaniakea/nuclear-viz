@@ -1,0 +1,6 @@
+z,n,symbol,start_level_idx,start_level_energy,unc_sle,start_level_jp,end_level_idx,end_level_energy,unc_ele,end_level_jp,gamma_idx,energy,unc_en,relative_intensity,unc_ri,multipolarity,mixing_ratio,unc_mr,b_e1,unc_be1,b_e2,unc_be2,b_m1,unc_bm1,b_m2,unc_bm2,tot_conv_coeff,tce_unc,ensdf_publication_cut-off,ensdf_authors,Extraction_date
+28,32,Ni,1,1332.514,0.004,2+,0,0,,0+,0,1332.501,0.005,100,,E2,,,,,13.1,,,,,,0.0001625,0.0000023,31-Dec-2012,E. BROWNE and  J. K. TULI,2026-11-27
+28,32,Ni,2,2158.632,0.018,2+,1,1332.514,0.004,2+,0,826.06,0.03,100,2.4,M1+E2,0.9,0.3,,,70,,0.031,,,,0.000337,0.000018,31-Dec-2012,E. BROWNE and  J. K. TULI,2026-11-27
+28,32,Ni,2,2158.632,0.018,2+,0,0,,0+,1,2158.57,0.1,17.6,2.4,(E2),,,,,0.22,,,,,,0.000439,0.000007,31-Dec-2012,E. BROWNE and  J. K. TULI,2026-11-27
+28,32,Ni,3,2284.8,0.04,0+,1,1332.514,0.004,2+,0,952.4,0.2,100,,,,,,,,,,,,,,,31-Dec-2012,E. BROWNE and  J. K. TULI,2026-11-27
+28,32,Ni,3,2284.8,0.04,0+,0,0,,0+,1,2284.87,,,,E0,,,,,,,,,,,,,31-Dec-2012,E. BROWNE and  J. K. TULI,2026-11-27

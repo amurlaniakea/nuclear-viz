@@ -29,7 +29,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -71,6 +71,27 @@ def _app_version() -> str:
 
 # Identificador: Símbolo-A con sufijo opcional de isómero (p. ej. Pa-234m)
 NUCLIDE_RE = re.compile(r"^([A-Za-z]{1,2})-(\d{1,3})(m\d?)?$")
+
+
+def _parse_identifier(identifier: str) -> tuple[str, int, str, str]:
+    """'pb-214' -> ('Pb', 214, '', 'Pb-214'). 400 si el formato no es válido."""
+    match = NUCLIDE_RE.match(identifier)
+    if not match:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid identifier format. Use Symbol-A (e.g., U-238, Pa-234m)",
+        )
+    raw_symbol, mass_str, isomer = match.groups()
+    # Los símbolos químicos son Capitalizados ("Pb"), no MAYÚSCULAS ("PB").
+    symbol = raw_symbol.capitalize()
+    a = int(mass_str)
+    return symbol, a, isomer or "", f"{symbol}-{a}{isomer or ''}"
+
+
+def _cache_put(cache: dict, key: str, value: dict) -> None:
+    if len(cache) >= REMOTE_CACHE_MAX:
+        cache.pop(next(iter(cache)))
+    cache[key] = (time.monotonic(), value)
 
 
 def load_data() -> dict:
@@ -143,18 +164,7 @@ async def get_nuclide(identifier: str, request: Request):
     Identifier format: Symbol-Mass (e.g., 'U-238', 'Pb-206')
     Tries local chains first. If not found or ?force_remote=true, queries IAEA Livechart (ENSDF).
     """
-    match = NUCLIDE_RE.match(identifier)
-    if not match:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid identifier format. Use Symbol-A (e.g., U-238, Pa-234m)",
-        )
-
-    raw_symbol, mass_str, isomer = match.groups()
-    # Los símbolos químicos son Capitalizados ("Pb"), no MAYÚSCULAS ("PB").
-    symbol = raw_symbol.capitalize()
-    a = int(mass_str)
-    canonical_id = f"{symbol}-{a}{isomer or ''}"
+    symbol, a, isomer, canonical_id = _parse_identifier(identifier)
 
     # 1. Check local data (por id canónico: soporta isómeros como Pa-234m)
     data = app.state.data
@@ -207,14 +217,45 @@ async def get_nuclide(identifier: str, request: Request):
             merged["id"] = canonical_id
             merged["name"] = canonical_id
             merged["symbol"] = symbol
-            if len(cache) >= REMOTE_CACHE_MAX:
-                cache.pop(next(iter(cache)))
-            cache[canonical_id] = (time.monotonic(), merged)
+            _cache_put(cache, canonical_id, merged)
             return merged
 
         if local_nuclide:
             return local_nuclide
         raise HTTPException(status_code=404, detail=f"Nuclide {identifier} not found in local DB nor IAEA")
+    finally:
+        client.close()
+
+
+@app.get("/api/nuclide/{identifier}/levels", summary="Energy levels and gamma transitions (IAEA Livechart)")
+async def get_nuclide_levels(identifier: str, max_levels: int = Query(40, ge=5, le=100)):
+    """
+    Niveles de energía y transiciones gamma de un núclido (ENSDF vía IAEA Livechart).
+    Devuelve los `max_levels` niveles de menor energía y las transiciones entre ellos.
+    """
+    symbol, a, isomer, canonical_id = _parse_identifier(identifier)
+    if isomer:
+        raise HTTPException(status_code=404, detail="Level schemes are per nuclide, not per isomer")
+    if symbol not in Z_LOOKUP:
+        raise HTTPException(status_code=404, detail=f"Unknown element symbol '{symbol}'")
+
+    cache = app.state.remote_cache
+    key = f"levels:{canonical_id}:{max_levels}"
+    hit = cache.get(key)
+    if hit and time.monotonic() - hit[0] < REMOTE_CACHE_TTL:
+        return hit[1]
+
+    client = IAEAClient()
+    try:
+        try:
+            data = await asyncio.to_thread(client.get_levels, symbol, a, max_levels)
+        except IAEAUnavailable:
+            raise HTTPException(status_code=502, detail="Remote nuclear data service unavailable")
+        if not data:
+            raise HTTPException(status_code=404, detail=f"No level data for {canonical_id} in IAEA")
+        result = {**data, "id": canonical_id, "name": canonical_id, "symbol": symbol}
+        _cache_put(cache, key, result)
+        return result
     finally:
         client.close()
 

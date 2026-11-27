@@ -43,6 +43,16 @@ Los isómeros se escriben con `m` (`Pa-234m`, `99mTc`) y solo se resuelven si es
 Si el núclido pertenece a la cadena que estás viendo, se resalta en el gráfico; si no,
 se muestra su ficha con la fuente (dataset local o IAEA Livechart).
 
+**Esquema de niveles** (solo con el backend). En la ficha de un núclido, el botón «Ver esquema de niveles»
+dibuja sus niveles de energía (los de menor energía; elige 10, 20, 40 u 80) y las transiciones gamma entre
+ellos, con la intensidad relativa reflejada en el grosor de la flecha. Son los niveles del propio núclido:
+para ver los gammas de un decaimiento, busca el núclido hijo (los de Co-60 están en Ni-60). Se puede
+exportar a SVG.
+
+![Primeros 5 niveles del Ni-60 y sus transiciones gamma (datos de IAEA Livechart / ENSDF)](docs/ejemplos/nuclear-viz-ni-60-niveles.svg)
+
+*Ejemplo: los 5 primeros niveles del Ni-60, con las transiciones gamma de 1332 keV (E2) y 826 keV (M1+E2).*
+
 **Exportar el gráfico.** Los botones «Exportar SVG» y «Exportar PNG» descargan la cadena
 visible (por ejemplo `nuclear-viz-u238.svg`). El SVG es vectorial y autónomo, con fondo
 oscuro; el PNG se genera al doble de resolución (2200×1520), útil para diapositivas.
@@ -78,6 +88,9 @@ Con el servidor en marcha, la documentación interactiva está en `http://localh
 | `GET /api/chains/{chain_id}` | Núclidos y desintegraciones de una cadena (`u238`, `th232`, `u235`). |
 | `GET /api/nuclide/{Símbolo-A}` | Ficha de un núclido, p. ej. `Pb-214` o `Pa-234m`. Busca primero en el dataset local; con `?force_remote=true` consulta IAEA Livechart aunque exista en local. |
 
+`GET /api/nuclide/{Símbolo-A}/levels?max_levels=40` devuelve los `max_levels` niveles de menor energía
+(5 a 100) y las transiciones gamma entre ellos, desde IAEA Livechart (ENSDF).
+
 Códigos de error de `/api/nuclide`: `400` formato no válido, `404` núclido inexistente
 (o isómero sin datos locales) y `502` si el servicio remoto no responde y no hay dato local.
 
@@ -111,7 +124,7 @@ No usar para protección radiológica ni cálculos de seguridad.
 
 - [ ] Parser/ingesta ENSDF.
 - [ ] Consulta EXFOR.
-- [ ] Diagramas de niveles gamma.
+- [x] Esquema de niveles y transiciones gamma (modo servidor, desde la ficha de búsqueda).
 - [x] Búsqueda de núclidos (modo servidor: `Pb-214`, `214Pb`, `Pa-234m`).
 - [x] Exportar SVG/PNG (botones sobre el gráfico; también en la demo estática).
 
