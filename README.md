@@ -134,6 +134,10 @@ No usar para protección radiológica ni cálculos de seguridad.
 - [x] Búsqueda de núclidos (modo servidor: `Pb-214`, `214Pb`, `Pa-234m`).
 - [x] Exportar SVG/PNG (botones sobre el gráfico; también en la demo estática).
 
+## Historial de cambios
+
+Ver [CHANGELOG.md](CHANGELOG.md).
+
 ## 📧 Contacto
 
 - **Autor**: Pedro Sordo Martínez

@@ -57,3 +57,12 @@ def test_example_svgs_are_valid_exports():
         root = ET.parse(f).getroot()
         assert root.tag == "{http://www.w3.org/2000/svg}svg"
         assert "Nuclear Viz" in "".join(root.itertext())
+
+
+def test_changelog_latest_version_matches_package_version():
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    latest = re.search(r"^## \[(\d+\.\d+\.\d+)\]", changelog, re.MULTILINE)
+    current = re.search(r'^version = "([^"]+)"', pyproject, re.MULTILINE)
+    assert latest and current
+    assert latest.group(1) == current.group(1), "actualiza CHANGELOG.md al cambiar la versión"
