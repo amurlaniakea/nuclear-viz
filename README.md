@@ -43,6 +43,10 @@ Los isómeros se escriben con `m` (`Pa-234m`, `99mTc`) y solo se resuelven si es
 Si el núclido pertenece a la cadena que estás viendo, se resalta en el gráfico; si no,
 se muestra su ficha con la fuente (dataset local o IAEA Livechart).
 
+En la ficha, «Decae a» indica el núcleo hijo (α, β⁻, β⁺ o captura electrónica) con atajos a su ficha
+y a su esquema de niveles; así, desde `Co-60` se llega en un clic a los gammas del `Ni-60`.
+La fisión espontánea y los modos sin hijo único no generan enlace.
+
 **Esquema de niveles** (solo con el backend). En la ficha de un núclido, el botón «Ver esquema de niveles»
 dibuja sus niveles de energía (los de menor energía; elige 10, 20, 40 u 80) y las transiciones gamma entre
 ellos, con la intensidad relativa reflejada en el grosor de la flecha. Son los niveles del propio núclido:
@@ -90,6 +94,8 @@ Con el servidor en marcha, la documentación interactiva está en `http://localh
 
 `GET /api/nuclide/{Símbolo-A}/levels?max_levels=40` devuelve los `max_levels` niveles de menor energía
 (5 a 100) y las transiciones gamma entre ellos, desde IAEA Livechart (ENSDF).
+
+La respuesta de `/api/nuclide/{Símbolo-A}` incluye `decays_to`: la lista de núcleos hijo con el modo que lleva a cada uno.
 
 Códigos de error de `/api/nuclide`: `400` formato no válido, `404` núclido inexistente
 (o isómero sin datos locales) y `502` si el servicio remoto no responde y no hay dato local.

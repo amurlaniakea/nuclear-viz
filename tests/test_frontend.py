@@ -124,3 +124,8 @@ def test_levels_assets_served_and_wired(client):
     assert client.get("/static/levels.js").status_code == 200
     js = client.get("/static/app.js").text
     assert "loadLevels" in js and "/levels?max_levels=" in js
+
+
+def test_daughter_shortcuts_wired(client):
+    js = client.get("/static/app.js").text
+    assert "decays_to" in js and "data-levels" in js and "data-search" in js
