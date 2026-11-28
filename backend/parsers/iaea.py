@@ -64,6 +64,14 @@ def _to_float(value: str | None) -> float | None:
         return None
 
 
+def _to_int(value: str | None) -> int | None:
+    """Entero o None si el campo está vacío o no es numérico (las filas reales a veces vienen incompletas)."""
+    try:
+        return int((value or "").strip())
+    except (TypeError, ValueError):
+        return None
+
+
 class IAEAUnavailable(Exception):
     """El servicio remoto no respondió o devolvió algo inutilizable (≠ núclido inexistente)."""
 
@@ -113,7 +121,7 @@ class IAEAClient:
         gammas_text = self._fetch("gammas", symbol, a)
         try:
             return self.parse_levels(levels_text, gammas_text or "0", a, max_levels)
-        except (KeyError, ValueError) as exc:
+        except (KeyError, TypeError, ValueError) as exc:
             logger.warning("IAEA unexpected levels CSV for %s-%s: %s", symbol, a, exc)
             raise IAEAUnavailable("unexpected CSV format") from exc
 
@@ -186,23 +194,28 @@ class IAEAClient:
 
         levels: list[dict[str, Any]] = []
         shifted = 0
+        skipped = 0  # filas incompletas (sin índice, sin energía numérica...): se omiten, no invalidan la respuesta
         z = n = 0
         for row in csv.DictReader(io.StringIO(levels_text)):
-            rz, rn = int(row["z"]), int(row["n"])
+            rz, rn = _to_int(row.get("z")), _to_int(row.get("n"))
+            if rz is None or rn is None:
+                skipped += 1
+                continue
             if rz + rn != a:
                 continue
             if (row.get("energy_shift") or "").strip():
                 shifted += 1
                 continue
-            energy = (row.get("energy") or "").strip()
-            if not energy:
+            idx, energy = _to_int(row.get("idx")), _to_float(row.get("energy"))
+            if idx is None or energy is None:
+                skipped += 1
                 continue
             z, n = rz, rn
             _, half_life = cls._format_half_life(row.get("half_life"), row.get("unit_hl"))
             levels.append(
                 {
-                    "idx": int(row["idx"]),
-                    "energy": float(energy),
+                    "idx": idx,
+                    "energy": energy,
                     "jp": (row.get("jp") or "").strip(),
                     "half_life": half_life,
                     "half_life_seconds": _to_float(row.get("half_life_sec")),
@@ -222,17 +235,24 @@ class IAEAClient:
             raise ValueError(f"código de error de IAEA: {gcode}")
         if gcode is None:
             for row in csv.DictReader(io.StringIO(gammas_text)):
-                if int(row["z"]) + int(row["n"]) != a:
+                rz, rn = _to_int(row.get("z")), _to_int(row.get("n"))
+                if rz is None or rn is None:
+                    skipped += 1
                     continue
-                start, end = int(row["start_level_idx"]), int(row["end_level_idx"])
-                energy = (row.get("energy") or "").strip()
-                if start not in kept_idx or end not in kept_idx or not energy:
+                if rz + rn != a:
+                    continue
+                start, end = _to_int(row.get("start_level_idx")), _to_int(row.get("end_level_idx"))
+                energy = _to_float(row.get("energy"))
+                if start is None or end is None or energy is None:
+                    skipped += 1  # transición sin ubicar en el esquema de niveles
+                    continue
+                if start not in kept_idx or end not in kept_idx:
                     continue
                 gammas.append(
                     {
                         "start": start,
                         "end": end,
-                        "energy": float(energy),
+                        "energy": energy,
                         "intensity": _to_float(row.get("relative_intensity")),
                         "multipolarity": (row.get("multipolarity") or "").strip(),
                     }
@@ -249,6 +269,7 @@ class IAEAClient:
             "shown_levels": len(kept),
             "truncated": total > len(kept),
             "omitted_shifted": shifted,
+            "skipped_rows": skipped,
             "raw_ref": IAEA_CHART_URL,
         }
 

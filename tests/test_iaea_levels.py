@@ -113,3 +113,42 @@ def test_client_no_data_and_errors():
         _client(lambda req: httpx.Response(200, text="6")).get_levels("Ni", 60)
     with pytest.raises(IAEAUnavailable):
         _client(lambda req: httpx.Response(500)).get_levels("Ni", 60)
+
+
+def _with_row(text: str, row: str) -> str:
+    return text.rstrip("\n") + "\n" + row + "\n"
+
+
+def test_level_rows_with_empty_integer_fields_are_skipped_not_fatal():
+    """Regresión: en datos reales (Ni-60 completo) había filas con campos enteros vacíos -> 502."""
+    bad_idx = "28,32,Ni,,,1500.0,,,2+,1,1 ps,,,ps,1e-12,,,,,,,,,,,,,,,,31-Dec-2012,X,2026-11-27"
+    bad_energy = "28,32,Ni,9,,?,,,2+,1,1 ps,,,ps,1e-12,,,,,,,,,,,,,,,,31-Dec-2012,X,2026-11-27"
+    bad_z = ",,Ni,10,,1600.0,,,2+,1,1 ps,,,ps,1e-12,,,,,,,,,,,,,,,,31-Dec-2012,X,2026-11-27"
+    text = _with_row(_with_row(_with_row(LEVELS, bad_idx), bad_energy), bad_z)
+    r = IAEAClient.parse_levels(text, GAMMAS, 60)
+    assert r["total_levels"] == 5 and [lv["idx"] for lv in r["levels"]] == [0, 1, 2, 3, 4]
+    assert r["skipped_rows"] == 3
+
+
+def test_gamma_rows_without_placement_are_skipped_not_fatal():
+    no_end = "28,32,Ni,3,2284.8,0.04,0+,,,,,1,500.0,0.1,10,,M1,,,,,,,,,,,,,31-Dec-2012,X,2026-11-27"
+    no_start = "28,32,Ni,,,,,0,0,,0+,0,700.0,0.1,10,,E2,,,,,,,,,,,,,31-Dec-2012,X,2026-11-27"
+    bad_energy = "28,32,Ni,1,1332.514,0.004,2+,0,0,,0+,5,?,,10,,E2,,,,,,,,,,,,,31-Dec-2012,X,2026-11-27"
+    text = _with_row(_with_row(_with_row(GAMMAS, no_end), no_start), bad_energy)
+    r = IAEAClient.parse_levels(LEVELS, text, 60)
+    assert len(r["gammas"]) == 5 and r["skipped_rows"] == 3
+
+
+def test_complete_data_reports_zero_skipped_rows():
+    assert IAEAClient.parse_levels(LEVELS, GAMMAS, 60)["skipped_rows"] == 0
+
+
+def test_client_survives_incomplete_rows_end_to_end():
+    bad = "28,32,Ni,,,1500.0,,,2+,1,1 ps,,,ps,1e-12,,,,,,,,,,,,,,,,31-Dec-2012,X,2026-11-27"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        text = _with_row(LEVELS, bad) if dict(request.url.params)["fields"] == "levels" else GAMMAS
+        return httpx.Response(200, text=text)
+
+    r = _client(handler).get_levels("Ni", 60)
+    assert r is not None and r["shown_levels"] == 5 and r["skipped_rows"] == 1
