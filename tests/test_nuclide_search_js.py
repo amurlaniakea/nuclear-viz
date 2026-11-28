@@ -68,3 +68,11 @@ def test_parse_nuclide_query(text, expected):
 @pytest.mark.parametrize("status", [400, 404, 502, 500])
 def test_error_messages_are_nonempty(status):
     assert len(_run(f"m.errorMessage({status}, 'Pb-214')")) > 10
+
+
+@pytest.mark.parametrize(
+    "mode,expected",
+    [("alpha", "α"), ("beta-", "β⁻"), ("beta+", "β⁺"), ("ec", "CE"), ("it", "it"), ("toString", "toString")],
+)
+def test_mode_label(mode, expected):
+    assert _run(f"m.modeLabel({json.dumps(mode)})") == expected

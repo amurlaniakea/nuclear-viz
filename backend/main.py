@@ -73,6 +73,40 @@ def _app_version() -> str:
 NUCLIDE_RE = re.compile(r"^([A-Za-z]{1,2})-(\d{1,3})(m\d?)?$")
 
 
+SYMBOL_BY_Z = {z: symbol for symbol, z in Z_LOOKUP.items()}
+
+# Cambio (dZ, dA) del núcleo hijo según el modo. Solo modos con hijo unívoco:
+# α (Z-2, A-4), β- (Z+1), β+ y captura electrónica (Z-1). La fisión espontánea no tiene un único hijo.
+_DAUGHTER_SHIFT = {"alpha": (-2, -4), "beta-": (1, 0), "beta+": (-1, 0), "ec": (-1, 0)}
+
+
+def daughters_for(z: int, a: int, modes: list[str] | None) -> list[dict]:
+    """Núcleos hijo a partir de Z, A y los modos de decaimiento normalizados."""
+    result: dict[str, dict] = {}
+    for mode in modes or []:
+        shift = _DAUGHTER_SHIFT.get(mode)
+        if not shift:
+            continue
+        dz, da = z + shift[0], a + shift[1]
+        symbol = SYMBOL_BY_Z.get(dz)
+        if symbol is None or da < 1 or da < dz:
+            continue
+        daughter_id = f"{symbol}-{da}"
+        entry = result.setdefault(
+            daughter_id, {"id": daughter_id, "symbol": symbol, "z": dz, "a": da, "modes": []}
+        )
+        if mode not in entry["modes"]:
+            entry["modes"].append(mode)
+    return list(result.values())
+
+
+def _with_daughters(nuclide: dict) -> dict:
+    z, a = nuclide.get("z"), nuclide.get("a")
+    if not isinstance(z, int) or not isinstance(a, int):
+        return nuclide
+    return {**nuclide, "decays_to": daughters_for(z, a, nuclide.get("decay_modes"))}
+
+
 def _parse_identifier(identifier: str) -> tuple[str, int, str, str]:
     """'pb-214' -> ('Pb', 214, '', 'Pb-214'). 400 si el formato no es válido."""
     match = NUCLIDE_RE.match(identifier)
@@ -183,7 +217,7 @@ async def get_nuclide(identifier: str, request: Request):
     
     # Si hay dato local Y NO se fuerza remoto, devolver local inmediatamente
     if local_nuclide and not force_remote:
-        return local_nuclide
+        return _with_daughters(local_nuclide)
 
     # Si no hay local O se fuerza remoto, ir al servicio remoto (IAEA)
     if isomer:
@@ -209,7 +243,7 @@ async def get_nuclide(identifier: str, request: Request):
             remote = await asyncio.to_thread(client.get_nuclide_properties, symbol, a)
         except IAEAUnavailable:
             if local_nuclide:
-                return local_nuclide  # fallback suave al dataset local
+                return _with_daughters(local_nuclide)  # fallback suave al dataset local
             raise HTTPException(status_code=502, detail="Remote nuclear data service unavailable")
 
         if remote:
@@ -217,11 +251,12 @@ async def get_nuclide(identifier: str, request: Request):
             merged["id"] = canonical_id
             merged["name"] = canonical_id
             merged["symbol"] = symbol
+            merged = _with_daughters(merged)
             _cache_put(cache, canonical_id, merged)
             return merged
 
         if local_nuclide:
-            return local_nuclide
+            return _with_daughters(local_nuclide)
         raise HTTPException(status_code=404, detail=f"Nuclide {identifier} not found in local DB nor IAEA")
     finally:
         client.close()

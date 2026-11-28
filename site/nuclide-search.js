@@ -35,5 +35,11 @@
     return `Error inesperado del servidor (HTTP ${status}).`;
   }
 
-  return { parseNuclideQuery, errorMessage };
+  // Etiqueta corta de un modo de decaimiento normalizado (los desconocidos se muestran tal cual).
+  const MODE_LABELS = { alpha: 'α', 'beta-': 'β⁻', 'beta+': 'β⁺', ec: 'CE' };
+  function modeLabel(mode) {
+    return Object.prototype.hasOwnProperty.call(MODE_LABELS, mode) ? MODE_LABELS[mode] : String(mode);
+  }
+
+  return { parseNuclideQuery, errorMessage, modeLabel };
 });

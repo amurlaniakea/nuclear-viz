@@ -541,6 +541,16 @@ function renderSearchResult(nuclide) {
     renderDetail(nuclide.id);
   }
 
+  const daughters = (nuclide.decays_to || [])
+    .map((d) => {
+      const label = (d.modes || []).map((mode) => window.NuclideSearch.modeLabel(mode)).join(' / ');
+      const id = escapeHtml(d.id);
+      return `<li><span class="mode-tag">${escapeHtml(label)}</span> → <strong>${id}</strong>
+        <button type="button" data-search="${id}">Ver ficha</button>
+        <button type="button" data-levels="${id}">Niveles</button></li>`;
+    })
+    .join('');
+
   searchResultEl.hidden = false;
   searchResultEl.innerHTML = `
     <h2>${escapeHtml(nuclide.name || nuclide.id)}</h2>
@@ -552,9 +562,19 @@ function renderSearchResult(nuclide) {
     <div>${modes}</div>
     <div class="detail-label">Fuente</div>
     <div>${escapeHtml(nuclide.source || '-')}</div>
+    ${daughters ? `<div class="detail-label">Decae a</div><ul class="daughters">${daughters}</ul>` : ''}
     ${inChain ? '<p class="search-info">También está en la cadena actual: se ha seleccionado en el gráfico.</p>' : ''}
     ${isIsomer ? '' : '<p><button type="button" id="levels-button">Ver esquema de niveles</button></p>'}
   `;
+  searchResultEl.querySelectorAll('button[data-search]').forEach((button) => {
+    button.addEventListener('click', () => {
+      searchInput.value = button.dataset.search;
+      runSearch(button.dataset.search);
+    });
+  });
+  searchResultEl.querySelectorAll('button[data-levels]').forEach((button) => {
+    button.addEventListener('click', () => loadLevels(button.dataset.levels, 20));
+  });
   const levelsButton = searchResultEl.querySelector('#levels-button');
   if (levelsButton) levelsButton.addEventListener('click', () => loadLevels(nuclide.id, 20));
 }
